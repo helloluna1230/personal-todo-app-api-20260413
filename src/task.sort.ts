@@ -1,4 +1,4 @@
-import { Task, TaskPriority, TaskStatus } from './task.model';
+import { Task, TaskPriority, TaskStatus, TaskTimeProjection, TimeStatus } from './task.model';
 
 const STATUS_ORDER: Record<TaskStatus, number> = {
   [TaskStatus.TODO]: 0,
@@ -35,48 +35,39 @@ export function defaultSortComparator(a: Task, b: Task): number {
   return a.createdAt.getTime() - b.createdAt.getTime();
 }
 
-export type TodayViewBucket = 'OVERDUE' | 'TODAY';
-
-const TODAY_BUCKET_ORDER: Record<TodayViewBucket, number> = {
-  OVERDUE: 0,
-  TODAY: 1,
-};
-
 /**
- * Classify a task into a Today-view bucket relative to the given reference date.
+ * Order of TimeStatus values in the Today view.
  *
- * A task is OVERDUE when its dueAt is before the start of today (midnight).
- * A task is TODAY when its dueAt falls within today.
+ * OVERDUE surfaces first. UPCOMING and NO_DUE_DATE should be filtered out
+ * before reaching this comparator; they are assigned high numeric weights so
+ * they sink to the bottom rather than silently mixing with today's tasks.
  */
-export function getTodayBucket(task: Task, today: Date): TodayViewBucket {
-  const startOfToday = new Date(today);
-  startOfToday.setHours(0, 0, 0, 0);
-
-  const endOfToday = new Date(today);
-  endOfToday.setHours(23, 59, 59, 999);
-
-  if (task.dueAt && task.dueAt < startOfToday) {
-    return 'OVERDUE';
-  }
-  return 'TODAY';
-}
+const TIME_STATUS_ORDER: Record<TimeStatus, number> = {
+  [TimeStatus.OVERDUE]: 0,
+  [TimeStatus.TODAY]: 1,
+  [TimeStatus.UPCOMING]: 2,
+  [TimeStatus.NO_DUE_DATE]: 3,
+};
 
 /**
  * Today-view sort comparator.
  *
+ * Consumes pre-computed {@link TaskTimeProjection} objects produced by
+ * TimeStatusService. This comparator never re-derives today semantics from
+ * `dueAt`; that responsibility belongs exclusively to TimeStatusService.
+ *
  * Rules (applied in order):
- *   1. Today bucket: OVERDUE before TODAY
+ *   1. TimeStatus: OVERDUE before TODAY (UPCOMING / NO_DUE_DATE sink last)
  *   2. Within the same bucket, apply defaultSortComparator rules
  */
-export function todaySortComparator(today: Date): (a: Task, b: Task) => number {
-  return (a: Task, b: Task): number => {
-    const aBucket = getTodayBucket(a, today);
-    const bBucket = getTodayBucket(b, today);
-    const bucketDiff = TODAY_BUCKET_ORDER[aBucket] - TODAY_BUCKET_ORDER[bBucket];
-    if (bucketDiff !== 0) return bucketDiff;
+export function todaySortComparator(
+  a: TaskTimeProjection,
+  b: TaskTimeProjection,
+): number {
+  const bucketDiff = TIME_STATUS_ORDER[a.timeStatus] - TIME_STATUS_ORDER[b.timeStatus];
+  if (bucketDiff !== 0) return bucketDiff;
 
-    return defaultSortComparator(a, b);
-  };
+  return defaultSortComparator(a.task, b.task);
 }
 
 /**
@@ -87,8 +78,13 @@ export function sortTasks(tasks: Task[]): Task[] {
 }
 
 /**
- * Sort tasks using the Today view rules (mutates the input array).
+ * Sort task-time projections using the Today view rules (mutates the input array).
+ *
+ * Callers are responsible for pre-computing each task's {@link TimeStatus} via
+ * TimeStatusService and for pre-filtering to only OVERDUE / TODAY items before
+ * passing them here.
  */
-export function sortTasksForToday(tasks: Task[], today: Date = new Date()): Task[] {
-  return tasks.sort(todaySortComparator(today));
+export function sortTasksForToday(projections: TaskTimeProjection[]): TaskTimeProjection[] {
+  return projections.sort(todaySortComparator);
 }
+

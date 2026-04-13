@@ -1,5 +1,6 @@
-import { Task, TaskPriority, TaskStatus } from '../task.model';
+import { Task, TaskPriority, TaskStatus, TaskTimeProjection, TimeStatus } from '../task.model';
 import { sortTasks, sortTasksForToday } from '../task.sort';
+import { computeTimeStatus } from '../time-status.service';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -17,6 +18,10 @@ function makeTask(overrides: Partial<Task> & { createdAt?: Date }): Task {
     createdAt: overrides.createdAt ?? new Date('2026-01-01T00:00:00Z'),
     ...overrides,
   };
+}
+
+function makeProjection(task: Task, timeStatus: TimeStatus): TaskTimeProjection {
+  return { task, timeStatus };
 }
 
 beforeEach(() => {
@@ -167,41 +172,71 @@ describe('sortTasks – default view', () => {
 });
 
 // ---------------------------------------------------------------------------
+// TimeStatusService
+// ---------------------------------------------------------------------------
+
+describe('computeTimeStatus', () => {
+  const TODAY = new Date('2026-04-13T12:00:00Z');
+
+  it('returns NO_DUE_DATE when dueAt is null', () => {
+    const task = makeTask({ dueAt: null });
+    expect(computeTimeStatus(task, TODAY)).toBe(TimeStatus.NO_DUE_DATE);
+  });
+
+  it('returns NO_DUE_DATE when dueAt is undefined', () => {
+    const task = makeTask({ dueAt: undefined });
+    expect(computeTimeStatus(task, TODAY)).toBe(TimeStatus.NO_DUE_DATE);
+  });
+
+  it('returns OVERDUE when dueAt is before midnight today', () => {
+    const task = makeTask({ dueAt: new Date('2026-04-12T23:59:59Z') });
+    expect(computeTimeStatus(task, TODAY)).toBe(TimeStatus.OVERDUE);
+  });
+
+  it('returns TODAY when dueAt is exactly at midnight today', () => {
+    const task = makeTask({ dueAt: new Date('2026-04-13T00:00:00.000Z') });
+    expect(computeTimeStatus(task, TODAY)).toBe(TimeStatus.TODAY);
+  });
+
+  it('returns TODAY when dueAt is mid-day today', () => {
+    const task = makeTask({ dueAt: new Date('2026-04-13T14:00:00Z') });
+    expect(computeTimeStatus(task, TODAY)).toBe(TimeStatus.TODAY);
+  });
+
+  it('returns TODAY when dueAt is exactly at end of today', () => {
+    const task = makeTask({ dueAt: new Date('2026-04-13T23:59:59.999Z') });
+    expect(computeTimeStatus(task, TODAY)).toBe(TimeStatus.TODAY);
+  });
+
+  it('returns UPCOMING when dueAt is tomorrow', () => {
+    const task = makeTask({ dueAt: new Date('2026-04-14T00:00:00Z') });
+    expect(computeTimeStatus(task, TODAY)).toBe(TimeStatus.UPCOMING);
+  });
+
+  it('returns UPCOMING when dueAt is far in the future', () => {
+    const task = makeTask({ dueAt: new Date('2027-01-01T00:00:00Z') });
+    expect(computeTimeStatus(task, TODAY)).toBe(TimeStatus.UPCOMING);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Today view sort
 // ---------------------------------------------------------------------------
 
 describe('sortTasksForToday – today view', () => {
-  const TODAY = new Date('2026-04-13T12:00:00Z');
-  const START_OF_TODAY = new Date('2026-04-13T00:00:00.000Z');
-  const END_OF_TODAY = new Date('2026-04-13T23:59:59.999Z');
-
-  it('places OVERDUE tasks before TODAY tasks', () => {
+  it('places OVERDUE projections before TODAY projections', () => {
     const todayTask = makeTask({ dueAt: new Date('2026-04-13T09:00:00Z') });
     const overdueTask = makeTask({ dueAt: new Date('2026-04-12T23:59:00Z') });
 
-    const result = sortTasksForToday([todayTask, overdueTask], TODAY);
+    const projections: TaskTimeProjection[] = [
+      makeProjection(todayTask, TimeStatus.TODAY),
+      makeProjection(overdueTask, TimeStatus.OVERDUE),
+    ];
 
-    expect(result[0]).toBe(overdueTask);
-    expect(result[1]).toBe(todayTask);
-  });
+    const result = sortTasksForToday(projections);
 
-  it('treats tasks due exactly at midnight today as TODAY (not OVERDUE)', () => {
-    const atMidnight = makeTask({ dueAt: START_OF_TODAY });
-
-    const result = sortTasksForToday([atMidnight], TODAY);
-
-    expect(result).toHaveLength(1);
-    expect(result[0]).toBe(atMidnight);
-  });
-
-  it('treats tasks due at end of today as TODAY', () => {
-    const endOfDay = makeTask({ dueAt: END_OF_TODAY });
-    const overdueTask = makeTask({ dueAt: new Date('2026-04-12T00:00:00Z') });
-
-    const result = sortTasksForToday([endOfDay, overdueTask], TODAY);
-
-    expect(result[0]).toBe(overdueTask);
-    expect(result[1]).toBe(endOfDay);
+    expect(result[0].task).toBe(overdueTask);
+    expect(result[1].task).toBe(todayTask);
   });
 
   it('within OVERDUE bucket, applies default sort rules (priority then dueAt then createdAt)', () => {
@@ -214,10 +249,13 @@ describe('sortTasksForToday – today view', () => {
       dueAt: new Date('2026-04-12T10:00:00Z'),
     });
 
-    const result = sortTasksForToday([overdueLow, overdueHigh], TODAY);
+    const result = sortTasksForToday([
+      makeProjection(overdueLow, TimeStatus.OVERDUE),
+      makeProjection(overdueHigh, TimeStatus.OVERDUE),
+    ]);
 
-    expect(result[0]).toBe(overdueHigh);
-    expect(result[1]).toBe(overdueLow);
+    expect(result[0].task).toBe(overdueHigh);
+    expect(result[1].task).toBe(overdueLow);
   });
 
   it('within TODAY bucket, applies default sort rules', () => {
@@ -230,10 +268,13 @@ describe('sortTasksForToday – today view', () => {
       dueAt: new Date('2026-04-13T14:00:00Z'),
     });
 
-    const result = sortTasksForToday([todayLow, todayHigh], TODAY);
+    const result = sortTasksForToday([
+      makeProjection(todayLow, TimeStatus.TODAY),
+      makeProjection(todayHigh, TimeStatus.TODAY),
+    ]);
 
-    expect(result[0]).toBe(todayHigh);
-    expect(result[1]).toBe(todayLow);
+    expect(result[0].task).toBe(todayHigh);
+    expect(result[1].task).toBe(todayLow);
   });
 
   it('sorts a mixed list: OVERDUE first, then TODAY, each sub-sorted by default rules', () => {
@@ -254,11 +295,67 @@ describe('sortTasksForToday – today view', () => {
       dueAt: new Date('2026-04-13T08:00:00Z'),
     });
 
-    const result = sortTasksForToday([todayMedium, overdueHigh, overdueLow, todayHigh], TODAY);
+    const result = sortTasksForToday([
+      makeProjection(todayMedium, TimeStatus.TODAY),
+      makeProjection(overdueHigh, TimeStatus.OVERDUE),
+      makeProjection(overdueLow, TimeStatus.OVERDUE),
+      makeProjection(todayHigh, TimeStatus.TODAY),
+    ]);
 
-    expect(result[0]).toBe(overdueHigh);   // OVERDUE + HIGH
-    expect(result[1]).toBe(overdueLow);    // OVERDUE + LOW
-    expect(result[2]).toBe(todayHigh);     // TODAY + HIGH
-    expect(result[3]).toBe(todayMedium);   // TODAY + MEDIUM
+    expect(result[0].task).toBe(overdueHigh);   // OVERDUE + HIGH
+    expect(result[1].task).toBe(overdueLow);    // OVERDUE + LOW
+    expect(result[2].task).toBe(todayHigh);     // TODAY + HIGH
+    expect(result[3].task).toBe(todayMedium);   // TODAY + MEDIUM
+  });
+
+  describe('defensive handling of out-of-scope projections', () => {
+    it('sinks UPCOMING tasks below TODAY tasks rather than silently mixing them in', () => {
+      const todayTask = makeTask({ dueAt: new Date('2026-04-13T09:00:00Z') });
+      const upcomingTask = makeTask({ dueAt: new Date('2026-04-20T09:00:00Z') });
+
+      const result = sortTasksForToday([
+        makeProjection(upcomingTask, TimeStatus.UPCOMING),
+        makeProjection(todayTask, TimeStatus.TODAY),
+      ]);
+
+      expect(result[0].timeStatus).toBe(TimeStatus.TODAY);
+      expect(result[1].timeStatus).toBe(TimeStatus.UPCOMING);
+    });
+
+    it('sinks NO_DUE_DATE tasks below TODAY tasks rather than silently mixing them in', () => {
+      const todayTask = makeTask({ dueAt: new Date('2026-04-13T09:00:00Z') });
+      const noDueTask = makeTask({ dueAt: null });
+
+      const result = sortTasksForToday([
+        makeProjection(noDueTask, TimeStatus.NO_DUE_DATE),
+        makeProjection(todayTask, TimeStatus.TODAY),
+      ]);
+
+      expect(result[0].timeStatus).toBe(TimeStatus.TODAY);
+      expect(result[1].timeStatus).toBe(TimeStatus.NO_DUE_DATE);
+    });
+
+    it('sinks DONE tasks to the back within their time-status bucket', () => {
+      const overdueCompleted = makeTask({
+        status: TaskStatus.DONE,
+        priority: TaskPriority.HIGH,
+        dueAt: new Date('2026-04-12T08:00:00Z'),
+      });
+      const overdueTodo = makeTask({
+        status: TaskStatus.TODO,
+        priority: TaskPriority.LOW,
+        dueAt: new Date('2026-04-12T08:00:00Z'),
+      });
+
+      const result = sortTasksForToday([
+        makeProjection(overdueCompleted, TimeStatus.OVERDUE),
+        makeProjection(overdueTodo, TimeStatus.OVERDUE),
+      ]);
+
+      // Both are OVERDUE; within bucket, TODO sorts before DONE (default rule 1)
+      expect(result[0].task).toBe(overdueTodo);
+      expect(result[1].task).toBe(overdueCompleted);
+    });
   });
 });
+
