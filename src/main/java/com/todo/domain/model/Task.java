@@ -1,7 +1,9 @@
 package com.todo.domain.model;
 
 import jakarta.persistence.*;
+import java.time.DateTimeException;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.UUID;
 
 @Entity
@@ -106,7 +108,17 @@ public class Task {
         public Builder dueAt(LocalDateTime dueAt) { this.dueAt = dueAt; return this; }
         public Builder remindAt(LocalDateTime remindAt) { this.remindAt = remindAt; return this; }
         public Builder completedAt(LocalDateTime completedAt) { this.completedAt = completedAt; return this; }
-        public Builder timezone(String timezone) { this.timezone = timezone; return this; }
+        public Builder timezone(String timezone) {
+            if (timezone != null) {
+                try {
+                    ZoneId.of(timezone);
+                } catch (DateTimeException e) {
+                    throw new IllegalArgumentException("无效的时区标识符：" + timezone, e);
+                }
+            }
+            this.timezone = timezone;
+            return this;
+        }
 
         public Task build() {
             return new Task(this);

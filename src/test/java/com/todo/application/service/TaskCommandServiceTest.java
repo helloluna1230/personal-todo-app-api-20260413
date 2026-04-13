@@ -98,4 +98,23 @@ class TaskCommandServiceTest {
 
         assertThat(existingTask.getUpdatedAt()).isNotNull();
     }
+
+    @Test
+    void taskBuilder_withValidTimezone_shouldAcceptIt() {
+        Task task = Task.builder().title("任务").timezone("Asia/Shanghai").build();
+        assertThat(task.getTimezone()).isEqualTo("Asia/Shanghai");
+    }
+
+    @Test
+    void taskBuilder_withInvalidTimezone_shouldThrowIllegalArgumentException() {
+        assertThatThrownBy(() -> Task.builder().title("任务").timezone("Invalid/Timezone").build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("无效的时区标识符");
+    }
+
+    @Test
+    void taskBuilder_withNullTimezone_shouldAllowNull() {
+        Task task = Task.builder().title("任务").timezone(null).build();
+        assertThat(task.getTimezone()).isNull();
+    }
 }
