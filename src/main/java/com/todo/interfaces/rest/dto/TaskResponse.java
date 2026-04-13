@@ -7,7 +7,6 @@ import com.todo.domain.model.TaskStatus;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 
 public class TaskResponse {
 
@@ -18,7 +17,8 @@ public class TaskResponse {
     private Priority priority;
     private TaskStatus status;
     private LocalDate dueAt;
-    private LocalTime remindAt;
+    private LocalDateTime remindAt;
+    private String timezone;
     private LocalDateTime completedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -34,6 +34,7 @@ public class TaskResponse {
         response.status = task.getStatus();
         response.dueAt = task.getDueAt();
         response.remindAt = task.getRemindAt();
+        response.timezone = task.getTimezone();
         response.completedAt = task.getCompletedAt();
         response.createdAt = task.getCreatedAt();
         response.updatedAt = task.getUpdatedAt();
@@ -48,7 +49,8 @@ public class TaskResponse {
     public Priority getPriority() { return priority; }
     public TaskStatus getStatus() { return status; }
     public LocalDate getDueAt() { return dueAt; }
-    public LocalTime getRemindAt() { return remindAt; }
+    public LocalDateTime getRemindAt() { return remindAt; }
+    public String getTimezone() { return timezone; }
     public LocalDateTime getCompletedAt() { return completedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

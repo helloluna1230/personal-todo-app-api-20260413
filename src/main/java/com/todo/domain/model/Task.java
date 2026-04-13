@@ -3,7 +3,6 @@ package com.todo.domain.model;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.UUID;
 
 @Entity
@@ -33,7 +32,13 @@ public class Task {
 
     private LocalDate dueAt;
 
-    private LocalTime remindAt;
+    private LocalDateTime remindAt;
+
+    /**
+     * IANA timezone identifier for the user's local context (e.g., "Asia/Shanghai", "America/New_York").
+     * Used for natural-day semantics on {@code dueAt} and for cross-timezone reminder recalculation.
+     */
+    private String timezone;
 
     private LocalDateTime completedAt;
 
@@ -57,6 +62,7 @@ public class Task {
         this.status = builder.status;
         this.dueAt = builder.dueAt;
         this.remindAt = builder.remindAt;
+        this.timezone = builder.timezone;
         this.completedAt = builder.completedAt;
         this.createdAt = builder.createdAt;
         this.updatedAt = builder.updatedAt;
@@ -73,7 +79,8 @@ public class Task {
     public Priority getPriority() { return priority; }
     public TaskStatus getStatus() { return status; }
     public LocalDate getDueAt() { return dueAt; }
-    public LocalTime getRemindAt() { return remindAt; }
+    public LocalDateTime getRemindAt() { return remindAt; }
+    public String getTimezone() { return timezone; }
     public LocalDateTime getCompletedAt() { return completedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
@@ -87,7 +94,8 @@ public class Task {
         private Priority priority = Priority.MEDIUM;
         private TaskStatus status = TaskStatus.TODO;
         private LocalDate dueAt;
-        private LocalTime remindAt;
+        private LocalDateTime remindAt;
+        private String timezone;
         private LocalDateTime completedAt;
         private LocalDateTime createdAt = LocalDateTime.now();
         private LocalDateTime updatedAt = LocalDateTime.now();
@@ -98,7 +106,8 @@ public class Task {
         public Builder priority(Priority priority) { this.priority = priority; return this; }
         public Builder status(TaskStatus status) { this.status = status; return this; }
         public Builder dueAt(LocalDate dueAt) { this.dueAt = dueAt; return this; }
-        public Builder remindAt(LocalTime remindAt) { this.remindAt = remindAt; return this; }
+        public Builder remindAt(LocalDateTime remindAt) { this.remindAt = remindAt; return this; }
+        public Builder timezone(String timezone) { this.timezone = timezone; return this; }
         public Builder completedAt(LocalDateTime completedAt) { this.completedAt = completedAt; return this; }
 
         public Task build() {

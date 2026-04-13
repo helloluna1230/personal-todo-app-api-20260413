@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.ZoneId;
+
 @Service
 public class TaskCommandService {
 
@@ -34,6 +36,15 @@ public class TaskCommandService {
         Category category = request.getCategory() != null ? request.getCategory() : Category.WORK;
         Priority priority = request.getPriority() != null ? request.getPriority() : Priority.MEDIUM;
 
+        String timezone = request.getTimezone();
+        if (StringUtils.hasText(timezone)) {
+            try {
+                ZoneId.of(timezone);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("无效的时区标识符: " + timezone);
+            }
+        }
+
         Task task = Task.builder()
                 .title(title)
                 .note(request.getNote())
@@ -41,6 +52,7 @@ public class TaskCommandService {
                 .priority(priority)
                 .dueAt(request.getDueAt())
                 .remindAt(request.getRemindAt())
+                .timezone(request.getTimezone())
                 .build();
 
         return taskRepository.save(task);

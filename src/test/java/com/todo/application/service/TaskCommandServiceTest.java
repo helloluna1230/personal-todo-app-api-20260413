@@ -15,7 +15,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -60,7 +60,8 @@ class TaskCommandServiceTest {
         request.setCategory(Category.LIFE);
         request.setPriority(Priority.HIGH);
         request.setDueAt(LocalDate.of(2026, 5, 1));
-        request.setRemindAt(LocalTime.of(9, 0));
+        request.setRemindAt(LocalDateTime.of(2026, 5, 1, 9, 0));
+        request.setTimezone("Asia/Shanghai");
 
         Task task = taskCommandService.createTask(request);
 
@@ -69,7 +70,8 @@ class TaskCommandServiceTest {
         assertThat(task.getCategory()).isEqualTo(Category.LIFE);
         assertThat(task.getPriority()).isEqualTo(Priority.HIGH);
         assertThat(task.getDueAt()).isEqualTo(LocalDate.of(2026, 5, 1));
-        assertThat(task.getRemindAt()).isEqualTo(LocalTime.of(9, 0));
+        assertThat(task.getRemindAt()).isEqualTo(LocalDateTime.of(2026, 5, 1, 9, 0));
+        assertThat(task.getTimezone()).isEqualTo("Asia/Shanghai");
         assertThat(task.getStatus()).isEqualTo(TaskStatus.TODO);
     }
 
@@ -169,5 +171,16 @@ class TaskCommandServiceTest {
         Task task = taskCommandService.createTask(request);
 
         assertThat(task.getTitle()).hasSize(120);
+    }
+
+    @Test
+    void createTask_withInvalidTimezone_shouldThrowException() {
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setTitle("任务");
+        request.setTimezone("Invalid/Zone");
+
+        assertThatThrownBy(() -> taskCommandService.createTask(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("无效的时区标识符");
     }
 }

@@ -16,7 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -75,7 +75,8 @@ class CreateTaskIntegrationTest {
         request.setCategory(Category.STUDY);
         request.setPriority(Priority.HIGH);
         request.setDueAt(LocalDate.of(2026, 5, 31));
-        request.setRemindAt(LocalTime.of(8, 30));
+        request.setRemindAt(LocalDateTime.of(2026, 5, 31, 8, 30));
+        request.setTimezone("Asia/Shanghai");
 
         MvcResult result = mockMvc.perform(post("/api/tasks")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -90,7 +91,8 @@ class CreateTaskIntegrationTest {
             assertThat(task.getCategory()).isEqualTo(Category.STUDY);
             assertThat(task.getPriority()).isEqualTo(Priority.HIGH);
             assertThat(task.getDueAt()).isEqualTo(LocalDate.of(2026, 5, 31));
-            assertThat(task.getRemindAt()).isEqualTo(LocalTime.of(8, 30));
+            assertThat(task.getRemindAt()).isEqualTo(LocalDateTime.of(2026, 5, 31, 8, 30));
+            assertThat(task.getTimezone()).isEqualTo("Asia/Shanghai");
             assertThat(task.getCompletedAt()).isNull();
             assertThat(task.getVersion()).isNotNull();
         });

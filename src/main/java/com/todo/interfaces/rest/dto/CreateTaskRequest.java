@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 public class CreateTaskRequest {
 
@@ -22,7 +22,9 @@ public class CreateTaskRequest {
 
     private LocalDate dueAt;
 
-    private LocalTime remindAt;
+    private LocalDateTime remindAt;
+
+    private String timezone;
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
@@ -39,6 +41,9 @@ public class CreateTaskRequest {
     public LocalDate getDueAt() { return dueAt; }
     public void setDueAt(LocalDate dueAt) { this.dueAt = dueAt; }
 
-    public LocalTime getRemindAt() { return remindAt; }
-    public void setRemindAt(LocalTime remindAt) { this.remindAt = remindAt; }
+    public LocalDateTime getRemindAt() { return remindAt; }
+    public void setRemindAt(LocalDateTime remindAt) { this.remindAt = remindAt; }
+
+    public String getTimezone() { return timezone; }
+    public void setTimezone(String timezone) { this.timezone = timezone; }
 }

@@ -14,7 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -65,7 +65,8 @@ class TaskControllerTest {
                 .category(Category.LIFE)
                 .priority(Priority.HIGH)
                 .dueAt(LocalDate.of(2026, 5, 1))
-                .remindAt(LocalTime.of(9, 0))
+                .remindAt(LocalDateTime.of(2026, 5, 1, 9, 0))
+                .timezone("Asia/Shanghai")
                 .build();
 
         when(taskCommandService.createTask(any(CreateTaskRequest.class))).thenReturn(mockTask);
@@ -76,7 +77,8 @@ class TaskControllerTest {
         request.setCategory(Category.LIFE);
         request.setPriority(Priority.HIGH);
         request.setDueAt(LocalDate.of(2026, 5, 1));
-        request.setRemindAt(LocalTime.of(9, 0));
+        request.setRemindAt(LocalDateTime.of(2026, 5, 1, 9, 0));
+        request.setTimezone("Asia/Shanghai");
 
         mockMvc.perform(post("/api/tasks")
                         .contentType(MediaType.APPLICATION_JSON)
