@@ -183,4 +183,57 @@ class TaskCommandServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("无效的时区标识符");
     }
+
+    @Test
+    void createTask_withRemindAtAfterDueAt_shouldThrowException() {
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setTitle("任务");
+        request.setDueAt(LocalDate.of(2026, 5, 1));
+        // remindAt is 2026-05-02T09:00 which is after dueAt 2026-05-01T23:59:59.999
+        request.setRemindAt(LocalDateTime.of(2026, 5, 2, 9, 0));
+
+        assertThatThrownBy(() -> taskCommandService.createTask(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("提醒时间不能晚于截止时间");
+    }
+
+    @Test
+    void createTask_withRemindAtEqualToDueAt_shouldSucceed() {
+        stubSave();
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setTitle("任务");
+        request.setDueAt(LocalDate.of(2026, 5, 1));
+        // remindAt == dueAt (23:59:59.999) is valid
+        request.setRemindAt(LocalDateTime.of(2026, 5, 1, 23, 59, 59, 999_000_000));
+
+        Task task = taskCommandService.createTask(request);
+
+        assertThat(task.getRemindAt()).isEqualTo(task.getDueAt());
+    }
+
+    @Test
+    void createTask_withRemindAtBeforeDueAt_shouldSucceed() {
+        stubSave();
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setTitle("任务");
+        request.setDueAt(LocalDate.of(2026, 5, 1));
+        request.setRemindAt(LocalDateTime.of(2026, 5, 1, 9, 0));
+
+        Task task = taskCommandService.createTask(request);
+
+        assertThat(task.getRemindAt()).isBefore(task.getDueAt());
+    }
+
+    @Test
+    void createTask_withRemindAtButNoDueAt_shouldSucceed() {
+        stubSave();
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setTitle("任务");
+        request.setRemindAt(LocalDateTime.of(2026, 5, 1, 9, 0));
+
+        Task task = taskCommandService.createTask(request);
+
+        assertThat(task.getRemindAt()).isNotNull();
+        assertThat(task.getDueAt()).isNull();
+    }
 }

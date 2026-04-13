@@ -124,4 +124,20 @@ class CreateTaskIntegrationTest {
 
         assertThat(taskRepository.count()).isZero();
     }
+
+    @Test
+    void createTask_withRemindAtAfterDueAt_returns400_andNothingPersisted() throws Exception {
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setTitle("任务");
+        request.setDueAt(LocalDate.of(2026, 5, 1));
+        request.setRemindAt(LocalDateTime.of(2026, 5, 2, 9, 0));
+
+        mockMvc.perform(post("/api/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].message").value("提醒时间不能晚于截止时间"));
+
+        assertThat(taskRepository.count()).isZero();
+    }
 }

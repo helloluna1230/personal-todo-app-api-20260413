@@ -48,13 +48,20 @@ public class TaskCommandService {
             }
         }
 
+        LocalDateTime dueAt = normalizeDueAt(request.getDueAt());
+        LocalDateTime remindAt = request.getRemindAt();
+
+        if (dueAt != null && remindAt != null && remindAt.isAfter(dueAt)) {
+            throw new IllegalArgumentException("提醒时间不能晚于截止时间");
+        }
+
         Task task = Task.builder()
                 .title(title)
                 .note(request.getNote())
                 .category(category)
                 .priority(priority)
-                .dueAt(normalizeDueAt(request.getDueAt()))
-                .remindAt(request.getRemindAt())
+                .dueAt(dueAt)
+                .remindAt(remindAt)
                 .timezone(request.getTimezone())
                 .build();
 
