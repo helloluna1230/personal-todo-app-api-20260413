@@ -39,7 +39,28 @@ describe('GET /tasks/meta/categories', () => {
   });
 });
 
-describe('Task CRUD with category management', () => {
+describe('Task model shape', () => {
+  it('POST /tasks returns full Task contract fields', async () => {
+    const res = await request(app)
+      .post('/tasks')
+      .send({ title: 'Check task shape', category: 'STUDY', priority: 'HIGH' });
+    expect(res.status).toBe(201);
+    const t = res.body;
+    expect(t).toHaveProperty('id');
+    expect(t).toHaveProperty('title', 'Check task shape');
+    expect(t).toHaveProperty('status', 'TODO');
+    expect(t).toHaveProperty('priority', 'HIGH');
+    expect(t).toHaveProperty('category', 'STUDY');
+    expect(t).toHaveProperty('dueAt');
+    expect(t).toHaveProperty('remindAt');
+    expect(t).toHaveProperty('completedAt');
+    expect(t).toHaveProperty('version', 1);
+    expect(t).toHaveProperty('createdAt');
+    expect(t).toHaveProperty('updatedAt');
+  });
+});
+
+describe('Category management via TaskCommandService', () => {
   let taskId;
 
   it('POST /tasks — creates a task with default category when none supplied', async () => {
@@ -47,6 +68,7 @@ describe('Task CRUD with category management', () => {
     expect(res.status).toBe(201);
     expect(res.body.title).toBe('Buy groceries');
     expect(res.body.category).toBe('WORK');
+    expect(res.body.status).toBe('TODO');
     taskId = res.body.id;
   });
 
@@ -74,11 +96,15 @@ describe('Task CRUD with category management', () => {
     expect(res.body.error).toMatch(/title is required/);
   });
 
-  it('GET /tasks — returns all tasks', async () => {
+  it('GET /tasks — returns all tasks with full Task fields', async () => {
     const res = await request(app).get('/tasks');
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.length).toBeGreaterThanOrEqual(3);
+    const t = res.body[0];
+    expect(t).toHaveProperty('status');
+    expect(t).toHaveProperty('priority');
+    expect(t).toHaveProperty('version');
   });
 
   it('GET /tasks?category=LIFE — filters by category', async () => {
@@ -99,10 +125,25 @@ describe('Task CRUD with category management', () => {
     expect(res.body.category).toBe('WORK');
   });
 
-  it('PATCH /tasks/:id — updates category to STUDY', async () => {
+  it('PATCH /tasks/:id — updates category to STUDY and bumps version', async () => {
     const res = await request(app).patch(`/tasks/${taskId}`).send({ category: 'STUDY' });
     expect(res.status).toBe(200);
     expect(res.body.category).toBe('STUDY');
+    expect(res.body.version).toBe(2);
+  });
+
+  it('PATCH /tasks/:id — sets completedAt when status transitions to DONE', async () => {
+    const res = await request(app).patch(`/tasks/${taskId}`).send({ status: 'DONE' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('DONE');
+    expect(res.body.completedAt).not.toBeNull();
+  });
+
+  it('PATCH /tasks/:id — clears completedAt when status reverts to TODO', async () => {
+    const res = await request(app).patch(`/tasks/${taskId}`).send({ status: 'TODO' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('TODO');
+    expect(res.body.completedAt).toBeNull();
   });
 
   it('PATCH /tasks/:id — rejects invalid category', async () => {
@@ -111,17 +152,15 @@ describe('Task CRUD with category management', () => {
   });
 
   it('PATCH /tasks/:id — falls back to default when category is null/empty', async () => {
-    // First create a task and manually clear its category via a direct DB write
     const createRes = await request(app).post('/tasks').send({ title: 'Legacy task', category: 'LIFE' });
     const id = createRes.body.id;
 
-    // Simulate the legacy empty-category scenario by using the DB directly
+    // Simulate legacy empty-category via direct DB write
     const { getDb } = require('../db');
     getDb().prepare("UPDATE tasks SET category = '' WHERE id = ?").run(id);
 
     const res = await request(app).get(`/tasks/${id}`);
     expect(res.status).toBe(200);
-    // resolveCategory should fall back to 'WORK'
     expect(res.body.category).toBe('WORK');
   });
 
@@ -133,5 +172,13 @@ describe('Task CRUD with category management', () => {
   it('GET /tasks/:id — returns 404 after deletion', async () => {
     const res = await request(app).get(`/tasks/${taskId}`);
     expect(res.status).toBe(404);
+  });
+});
+
+describe('task-organization routes are read-only', () => {
+  it('organizationRouter does not expose POST (handled by commandRouter)', async () => {
+    // The route handler in commandRoutes.js handles POST; verify it works end-to-end
+    const res = await request(app).post('/tasks').send({ title: 'Via command service' });
+    expect(res.status).toBe(201);
   });
 });

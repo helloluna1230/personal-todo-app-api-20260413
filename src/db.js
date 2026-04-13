@@ -19,17 +19,40 @@ function migrate(database) {
     CREATE TABLE IF NOT EXISTS tasks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
-      completed INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'TODO',
+      priority TEXT NOT NULL DEFAULT 'NORMAL',
       category TEXT NOT NULL DEFAULT 'WORK',
+      due_at TEXT,
+      remind_at TEXT,
+      completed_at TEXT,
+      version INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
 
-  // Add category column to existing tables that don't have it (idempotent migration)
+  // Idempotent column additions for databases created before this schema version
   const columns = database.pragma('table_info(tasks)').map((c) => c.name);
   if (!columns.includes('category')) {
     database.exec(`ALTER TABLE tasks ADD COLUMN category TEXT NOT NULL DEFAULT 'WORK'`);
+  }
+  if (!columns.includes('status')) {
+    database.exec(`ALTER TABLE tasks ADD COLUMN status TEXT NOT NULL DEFAULT 'TODO'`);
+  }
+  if (!columns.includes('priority')) {
+    database.exec(`ALTER TABLE tasks ADD COLUMN priority TEXT NOT NULL DEFAULT 'NORMAL'`);
+  }
+  if (!columns.includes('due_at')) {
+    database.exec(`ALTER TABLE tasks ADD COLUMN due_at TEXT`);
+  }
+  if (!columns.includes('remind_at')) {
+    database.exec(`ALTER TABLE tasks ADD COLUMN remind_at TEXT`);
+  }
+  if (!columns.includes('completed_at')) {
+    database.exec(`ALTER TABLE tasks ADD COLUMN completed_at TEXT`);
+  }
+  if (!columns.includes('version')) {
+    database.exec(`ALTER TABLE tasks ADD COLUMN version INTEGER NOT NULL DEFAULT 1`);
   }
 }
 

@@ -1,0 +1,58 @@
+const express = require('express');
+const { VALID_CATEGORIES } = require('./category');
+const { VALID_STATUSES, VALID_PRIORITIES, createTask, updateTask, deleteTask } = require('./taskCommandService');
+
+/**
+ * TaskCommandService HTTP routes.
+ * These are the ONLY routes permitted to mutate task records.
+ */
+const router = express.Router();
+
+function validateCategory(category, res) {
+  if (category && !VALID_CATEGORIES.includes(category)) {
+    res.status(400).json({ error: `Invalid category. Must be one of: ${VALID_CATEGORIES.join(', ')}` });
+    return false;
+  }
+  return true;
+}
+
+// POST /tasks
+router.post('/', (req, res) => {
+  const { title, status, priority, category, dueAt, remindAt } = req.body;
+  if (!title || typeof title !== 'string' || !title.trim()) {
+    return res.status(400).json({ error: 'title is required' });
+  }
+  if (!validateCategory(category, res)) return;
+  if (status && !VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ error: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` });
+  }
+  if (priority && !VALID_PRIORITIES.includes(priority)) {
+    return res.status(400).json({ error: `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(', ')}` });
+  }
+  const task = createTask({ title: title.trim(), status, priority, category, dueAt, remindAt });
+  res.status(201).json(task);
+});
+
+// PATCH /tasks/:id
+router.patch('/:id', (req, res) => {
+  const { title, status, priority, category, dueAt, remindAt } = req.body;
+  if (!validateCategory(category, res)) return;
+  if (status && !VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ error: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` });
+  }
+  if (priority && !VALID_PRIORITIES.includes(priority)) {
+    return res.status(400).json({ error: `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(', ')}` });
+  }
+  const task = updateTask(Number(req.params.id), { title, status, priority, category, dueAt, remindAt });
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  res.json(task);
+});
+
+// DELETE /tasks/:id
+router.delete('/:id', (req, res) => {
+  const deleted = deleteTask(Number(req.params.id));
+  if (!deleted) return res.status(404).json({ error: 'Task not found' });
+  res.status(204).send();
+});
+
+module.exports = router;
