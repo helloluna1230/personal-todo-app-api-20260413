@@ -11,23 +11,24 @@ const VALID_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
  * preserve the single-writer boundary defined in the main architecture.
  */
 
-function createTask({ title, status, priority, category, dueAt, remindAt }) {
+function createTask({ title, status, priority, category, dueAt, remindAt, timezone }) {
   const db = getDb();
   const resolvedCategory = resolveCategory(category);
   const resolvedStatus = VALID_STATUSES.includes(status) ? status : 'TODO';
   const resolvedPriority = VALID_PRIORITIES.includes(priority) ? priority : 'MEDIUM';
+  const resolvedTimezone = timezone || 'UTC';
 
   const result = db
     .prepare(
-      `INSERT INTO tasks (title, status, priority, category, due_at, remind_at, version, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`
+      `INSERT INTO tasks (title, status, priority, category, due_at, remind_at, timezone, version, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`
     )
-    .run(title, resolvedStatus, resolvedPriority, resolvedCategory, dueAt || null, remindAt || null);
+    .run(title, resolvedStatus, resolvedPriority, resolvedCategory, dueAt || null, remindAt || null, resolvedTimezone);
 
   return getTaskById(result.lastInsertRowid);
 }
 
-function updateTask(id, { title, status, priority, category, dueAt, remindAt }) {
+function updateTask(id, { title, status, priority, category, dueAt, remindAt, timezone }) {
   const db = getDb();
   const existing = getTaskById(id);
   if (!existing) return null;
@@ -39,6 +40,7 @@ function updateTask(id, { title, status, priority, category, dueAt, remindAt }) 
   const newCategory = category !== undefined ? resolveCategory(category) : existing.category;
   const newDueAt = dueAt !== undefined ? dueAt || null : existing.dueAt;
   const newRemindAt = remindAt !== undefined ? remindAt || null : existing.remindAt;
+  const newTimezone = timezone !== undefined ? timezone || 'UTC' : existing.timezone;
 
   // Set completedAt when transitioning to DONE; clear it when reverting to TODO
   let completedAt = existing.completedAt;
@@ -51,11 +53,11 @@ function updateTask(id, { title, status, priority, category, dueAt, remindAt }) 
   db.prepare(
     `UPDATE tasks
      SET title = ?, status = ?, priority = ?, category = ?,
-         due_at = ?, remind_at = ?, completed_at = ?,
+         due_at = ?, remind_at = ?, completed_at = ?, timezone = ?,
          version = version + 1,
          updated_at = datetime('now')
      WHERE id = ?`
-  ).run(newTitle, newStatus, newPriority, newCategory, newDueAt, newRemindAt, completedAt, id);
+  ).run(newTitle, newStatus, newPriority, newCategory, newDueAt, newRemindAt, completedAt, newTimezone, id);
 
   return getTaskById(id);
 }

@@ -25,6 +25,7 @@ function migrate(database) {
       due_at TEXT,
       remind_at TEXT,
       completed_at TEXT,
+      timezone TEXT NOT NULL DEFAULT 'UTC',
       version INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -50,6 +51,9 @@ function migrate(database) {
   }
   if (!columns.includes('completed_at')) {
     database.exec(`ALTER TABLE tasks ADD COLUMN completed_at TEXT`);
+  }
+  if (!columns.includes('timezone')) {
+    database.exec(`ALTER TABLE tasks ADD COLUMN timezone TEXT NOT NULL DEFAULT 'UTC'`);
   }
   if (!columns.includes('version')) {
     database.exec(`ALTER TABLE tasks ADD COLUMN version INTEGER NOT NULL DEFAULT 1`);

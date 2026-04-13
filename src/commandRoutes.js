@@ -18,7 +18,7 @@ function validateCategory(category, res) {
 
 // POST /tasks
 router.post('/', (req, res) => {
-  const { title, status, priority, category, dueAt, remindAt } = req.body;
+  const { title, status, priority, category, dueAt, remindAt, timezone } = req.body;
   if (!title || typeof title !== 'string' || !title.trim()) {
     return res.status(400).json({ error: 'title is required' });
   }
@@ -29,13 +29,13 @@ router.post('/', (req, res) => {
   if (priority && !VALID_PRIORITIES.includes(priority)) {
     return res.status(400).json({ error: `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(', ')}` });
   }
-  const task = createTask({ title: title.trim(), status, priority, category, dueAt, remindAt });
+  const task = createTask({ title: title.trim(), status, priority, category, dueAt, remindAt, timezone });
   res.status(201).json(task);
 });
 
 // PATCH /tasks/:id
 router.patch('/:id', (req, res) => {
-  const { title, status, priority, category, dueAt, remindAt } = req.body;
+  const { title, status, priority, category, dueAt, remindAt, timezone } = req.body;
   if (!validateCategory(category, res)) return;
   if (status && !VALID_STATUSES.includes(status)) {
     return res.status(400).json({ error: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` });
@@ -43,7 +43,7 @@ router.patch('/:id', (req, res) => {
   if (priority && !VALID_PRIORITIES.includes(priority)) {
     return res.status(400).json({ error: `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(', ')}` });
   }
-  const task = updateTask(Number(req.params.id), { title, status, priority, category, dueAt, remindAt });
+  const task = updateTask(Number(req.params.id), { title, status, priority, category, dueAt, remindAt, timezone });
   if (!task) return res.status(404).json({ error: 'Task not found' });
   res.json(task);
 });

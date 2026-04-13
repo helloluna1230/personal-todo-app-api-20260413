@@ -54,6 +54,7 @@ describe('Task model shape', () => {
     expect(t).toHaveProperty('dueAt');
     expect(t).toHaveProperty('remindAt');
     expect(t).toHaveProperty('completedAt');
+    expect(t).toHaveProperty('timezone');
     expect(t).toHaveProperty('version', 1);
     expect(t).toHaveProperty('createdAt');
     expect(t).toHaveProperty('updatedAt');

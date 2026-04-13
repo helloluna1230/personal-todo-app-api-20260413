@@ -15,6 +15,7 @@ function rowToTask(row) {
     dueAt: row.due_at || null,
     remindAt: row.remind_at || null,
     completedAt: row.completed_at || null,
+    timezone: row.timezone || 'UTC',
     version: row.version,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
