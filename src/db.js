@@ -20,7 +20,7 @@ function migrate(database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'TODO',
-      priority TEXT NOT NULL DEFAULT 'NORMAL',
+      priority TEXT NOT NULL DEFAULT 'MEDIUM',
       category TEXT NOT NULL DEFAULT 'WORK',
       due_at TEXT,
       remind_at TEXT,
@@ -40,7 +40,7 @@ function migrate(database) {
     database.exec(`ALTER TABLE tasks ADD COLUMN status TEXT NOT NULL DEFAULT 'TODO'`);
   }
   if (!columns.includes('priority')) {
-    database.exec(`ALTER TABLE tasks ADD COLUMN priority TEXT NOT NULL DEFAULT 'NORMAL'`);
+    database.exec(`ALTER TABLE tasks ADD COLUMN priority TEXT NOT NULL DEFAULT 'MEDIUM'`);
   }
   if (!columns.includes('due_at')) {
     database.exec(`ALTER TABLE tasks ADD COLUMN due_at TEXT`);

@@ -3,7 +3,7 @@ const { resolveCategory } = require('./category');
 const { getTaskById } = require('./tasks');
 
 const VALID_STATUSES = ['TODO', 'DONE'];
-const VALID_PRIORITIES = ['LOW', 'NORMAL', 'HIGH'];
+const VALID_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
 
 /**
  * TaskCommandService — the single-writer entry point for the Task aggregate.
@@ -15,7 +15,7 @@ function createTask({ title, status, priority, category, dueAt, remindAt }) {
   const db = getDb();
   const resolvedCategory = resolveCategory(category);
   const resolvedStatus = VALID_STATUSES.includes(status) ? status : 'TODO';
-  const resolvedPriority = VALID_PRIORITIES.includes(priority) ? priority : 'NORMAL';
+  const resolvedPriority = VALID_PRIORITIES.includes(priority) ? priority : 'MEDIUM';
 
   const result = db
     .prepare(

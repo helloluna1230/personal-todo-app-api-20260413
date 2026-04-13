@@ -10,7 +10,7 @@ function rowToTask(row) {
     id: row.id,
     title: row.title,
     status: row.status || 'TODO',
-    priority: row.priority || 'NORMAL',
+    priority: row.priority || 'MEDIUM',
     category: resolveCategory(row.category),
     dueAt: row.due_at || null,
     remindAt: row.remind_at || null,
