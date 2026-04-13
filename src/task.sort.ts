@@ -38,15 +38,16 @@ export function defaultSortComparator(a: Task, b: Task): number {
 /**
  * Order of TimeStatus values in the Today view.
  *
- * OVERDUE surfaces first. UPCOMING and NO_DUE_DATE should be filtered out
- * before reaching this comparator; they are assigned high numeric weights so
- * they sink to the bottom rather than silently mixing with today's tasks.
+ * OVERDUE surfaces first. UPCOMING, NO_DUE_DATE and DONE should be filtered
+ * out before reaching this comparator; they are assigned high numeric weights
+ * so they sink to the bottom rather than silently mixing with today's tasks.
  */
 const TIME_STATUS_ORDER: Record<TimeStatus, number> = {
   [TimeStatus.OVERDUE]: 0,
   [TimeStatus.TODAY]: 1,
   [TimeStatus.UPCOMING]: 2,
   [TimeStatus.NO_DUE_DATE]: 3,
+  [TimeStatus.DONE]: 4,
 };
 
 /**

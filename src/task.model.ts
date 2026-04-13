@@ -30,6 +30,7 @@ export enum TimeStatus {
   TODAY = 'TODAY',
   UPCOMING = 'UPCOMING',
   NO_DUE_DATE = 'NO_DUE_DATE',
+  DONE = 'DONE',
 }
 
 /**
