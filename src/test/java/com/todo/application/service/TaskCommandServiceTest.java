@@ -57,7 +57,7 @@ class TaskCommandServiceTest {
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle("完成报告");
         request.setNotes("需要附上图表");
-        request.setCategory(Category.PERSONAL);
+        request.setCategory(Category.LIFE);
         request.setPriority(Priority.HIGH);
         request.setDueDate(LocalDate.of(2026, 5, 1));
         request.setReminderTime(LocalTime.of(9, 0));
@@ -66,7 +66,7 @@ class TaskCommandServiceTest {
 
         assertThat(task.getTitle()).isEqualTo("完成报告");
         assertThat(task.getNotes()).isEqualTo("需要附上图表");
-        assertThat(task.getCategory()).isEqualTo(Category.PERSONAL);
+        assertThat(task.getCategory()).isEqualTo(Category.LIFE);
         assertThat(task.getPriority()).isEqualTo(Priority.HIGH);
         assertThat(task.getDueDate()).isEqualTo(LocalDate.of(2026, 5, 1));
         assertThat(task.getReminderTime()).isEqualTo(LocalTime.of(9, 0));

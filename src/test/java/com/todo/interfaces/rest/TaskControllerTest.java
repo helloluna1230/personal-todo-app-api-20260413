@@ -76,7 +76,7 @@ class TaskControllerTest {
         Task mockTask = Task.builder()
                 .title("完成报告")
                 .notes("需要附上图表")
-                .category(Category.PERSONAL)
+                .category(Category.LIFE)
                 .priority(Priority.HIGH)
                 .dueDate(LocalDate.of(2026, 5, 1))
                 .reminderTime(LocalTime.of(9, 0))
@@ -88,7 +88,7 @@ class TaskControllerTest {
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle("完成报告");
         request.setNotes("需要附上图表");
-        request.setCategory(Category.PERSONAL);
+        request.setCategory(Category.LIFE);
         request.setPriority(Priority.HIGH);
         request.setDueDate(LocalDate.of(2026, 5, 1));
         request.setReminderTime(LocalTime.of(9, 0));
@@ -99,7 +99,7 @@ class TaskControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.title").value("完成报告"))
                 .andExpect(jsonPath("$.notes").value("需要附上图表"))
-                .andExpect(jsonPath("$.category").value("PERSONAL"))
+                .andExpect(jsonPath("$.category").value("LIFE"))
                 .andExpect(jsonPath("$.priority").value("HIGH"));
     }
 
@@ -117,7 +117,7 @@ class TaskControllerTest {
     @Test
     void listTasks_defaultView_shouldReturnAllTasks() throws Exception {
         Task task1 = Task.builder().title("任务1").category(Category.WORK).build();
-        Task task2 = Task.builder().title("任务2").category(Category.PERSONAL).build();
+        Task task2 = Task.builder().title("任务2").category(Category.LIFE).build();
         when(taskQueryService.getAll()).thenReturn(Arrays.asList(task1, task2));
         when(timeStatusService.computeTimeStatus(any())).thenReturn(TimeStatus.NO_DUE_DATE);
 
@@ -164,12 +164,12 @@ class TaskControllerTest {
 
     @Test
     void listTasks_viewCategory_whenEmpty_shouldReturnEmptyList() throws Exception {
-        when(taskQueryService.getByCategory(Category.SHOPPING))
+        when(taskQueryService.getByCategory(Category.STUDY))
                 .thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/api/tasks")
                         .param("view", "category")
-                        .param("category", "SHOPPING"))
+                        .param("category", "STUDY"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
     }

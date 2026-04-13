@@ -67,9 +67,9 @@ class TaskQueryServiceTest {
 
     @Test
     void getByCategory_whenEmpty_shouldReturnEmptyList() {
-        when(taskRepository.findByCategory(Category.SHOPPING)).thenReturn(Collections.emptyList());
+        when(taskRepository.findByCategory(Category.STUDY)).thenReturn(Collections.emptyList());
 
-        List<Task> result = taskQueryService.getByCategory(Category.SHOPPING);
+        List<Task> result = taskQueryService.getByCategory(Category.STUDY);
 
         assertThat(result).isEmpty();
     }
