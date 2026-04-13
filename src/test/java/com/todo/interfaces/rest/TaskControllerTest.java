@@ -74,7 +74,6 @@ class TaskControllerTest {
 
     @Test
     void updatePriority_toMedium_shouldReturn200AndPersist() throws Exception {
-        taskRepository.save(Task.builder().title("高优先级任务").priority(Priority.HIGH).build());
         Task highTask = taskRepository.save(Task.builder().title("高优先级任务").priority(Priority.HIGH).build());
 
         UpdatePriorityRequest request = new UpdatePriorityRequest();
