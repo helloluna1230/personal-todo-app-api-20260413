@@ -23,32 +23,4 @@ router.patch('/:id/complete', (req, res) => {
   }
 });
 
-/**
- * POST /tasks
- *
- * Create a new task.
- */
-router.post('/', (req, res) => {
-  try {
-    const { title } = req.body;
-    const task = taskService.addTask({ title });
-    return res.status(201).json({ data: task });
-  } catch (err) {
-    return res.status(400).json({ error: err.message });
-  }
-});
-
-/**
- * GET /tasks/:id
- *
- * Retrieve a task by ID.
- */
-router.get('/:id', (req, res) => {
-  const task = taskService.findById(req.params.id);
-  if (!task) {
-    return res.status(404).json({ error: `Task not found: ${req.params.id}` });
-  }
-  return res.json({ data: task });
-});
-
 module.exports = router;

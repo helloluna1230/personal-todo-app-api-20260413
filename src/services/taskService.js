@@ -23,12 +23,14 @@ function addTask(params) {
 
 /**
  * Find a task by ID.
+ * Returns a shallow copy so callers cannot mutate internal state directly.
  *
  * @param {string} id
  * @returns {Object|undefined}
  */
 function findById(id) {
-  return taskStore.get(id);
+  const task = taskStore.get(id);
+  return task ? { ...task } : undefined;
 }
 
 /**
@@ -73,4 +75,4 @@ function clearAll() {
   taskStore.clear();
 }
 
-module.exports = { addTask, findById, completeTask, clearAll, taskStore };
+module.exports = { addTask, findById, completeTask, clearAll };

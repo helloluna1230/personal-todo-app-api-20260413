@@ -46,9 +46,16 @@ function hasReminders(taskId) {
   return scheduledReminders.has(taskId) && scheduledReminders.get(taskId).length > 0;
 }
 
+/**
+ * Clear all reminder state (used for test isolation).
+ */
+function clearAll() {
+  scheduledReminders.clear();
+}
+
 // Listen for task.completed events and cancel reminders automatically
 emitter.on('task.completed', ({ taskId }) => {
   cancelReminders(taskId);
 });
 
-module.exports = { scheduleReminder, cancelReminders, hasReminders, scheduledReminders };
+module.exports = { scheduleReminder, cancelReminders, hasReminders, clearAll };

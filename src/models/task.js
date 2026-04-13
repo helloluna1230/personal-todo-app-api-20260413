@@ -6,8 +6,7 @@ const { randomUUID } = require('crypto');
  * Task status values
  */
 const TaskStatus = Object.freeze({
-  PENDING: 'PENDING',
-  IN_PROGRESS: 'IN_PROGRESS',
+  TODO: 'TODO',
   DONE: 'DONE',
 });
 
@@ -20,7 +19,7 @@ const TaskStatus = Object.freeze({
  * @param {Date|null} [params.completedAt]
  * @returns {Object} task
  */
-function createTask({ title, status = TaskStatus.PENDING, completedAt = null } = {}) {
+function createTask({ title, status = TaskStatus.TODO, completedAt = null } = {}) {
   if (!title || typeof title !== 'string' || title.trim() === '') {
     throw new Error('Task title is required');
   }

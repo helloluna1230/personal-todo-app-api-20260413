@@ -7,7 +7,7 @@ const reminderService = require('../src/services/reminderService');
 beforeEach(() => {
   // Isolate each test: clear all tasks and all scheduled reminders
   taskService.clearAll();
-  reminderService.scheduledReminders.clear();
+  reminderService.clearAll();
 });
 
 describe('completeTask', () => {
@@ -15,7 +15,7 @@ describe('completeTask', () => {
     test('status changes to DONE after completeTask is called', () => {
       const task = taskService.addTask({ title: 'Buy groceries' });
 
-      expect(task.status).toBe(TaskStatus.PENDING);
+      expect(task.status).toBe(TaskStatus.TODO);
 
       const updated = taskService.completeTask(task.id);
 
