@@ -1,0 +1,12 @@
+com/todo/domain/model/Category.class
+com/todo/domain/model/Task.class
+com/todo/interfaces/rest/dto/CreateTaskRequest.class
+com/todo/TodoApplication.class
+com/todo/interfaces/rest/dto/TaskResponse.class
+com/todo/interfaces/rest/TaskController.class
+com/todo/domain/model/Priority.class
+com/todo/domain/model/TaskStatus.class
+com/todo/application/service/TaskCommandService.class
+com/todo/domain/repository/TaskRepository.class
+com/todo/interfaces/rest/GlobalExceptionHandler.class
+com/todo/domain/model/Task$Builder.class
