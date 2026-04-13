@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 
 @Service
@@ -50,11 +53,23 @@ public class TaskCommandService {
                 .note(request.getNote())
                 .category(category)
                 .priority(priority)
-                .dueAt(request.getDueAt())
+                .dueAt(normalizeDueAt(request.getDueAt()))
                 .remindAt(request.getRemindAt())
                 .timezone(request.getTimezone())
                 .build();
 
         return taskRepository.save(task);
+    }
+
+    /**
+     * Normalizes a date-only input to the end of that day (23:59:59.999), so that
+     * {@code dueAt} always stores a precise datetime point for consistent
+     * TODAY/OVERDUE projections across timezones.
+     */
+    private static LocalDateTime normalizeDueAt(LocalDate dueDate) {
+        if (dueDate == null) {
+            return null;
+        }
+        return LocalDateTime.of(dueDate, LocalTime.of(23, 59, 59, 999_000_000));
     }
 }

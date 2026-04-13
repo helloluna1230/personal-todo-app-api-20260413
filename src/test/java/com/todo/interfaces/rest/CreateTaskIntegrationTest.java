@@ -90,7 +90,7 @@ class CreateTaskIntegrationTest {
             assertThat(task.getNote()).isEqualTo("需要数据支撑");
             assertThat(task.getCategory()).isEqualTo(Category.STUDY);
             assertThat(task.getPriority()).isEqualTo(Priority.HIGH);
-            assertThat(task.getDueAt()).isEqualTo(LocalDate.of(2026, 5, 31));
+            assertThat(task.getDueAt()).isEqualTo(LocalDateTime.of(2026, 5, 31, 23, 59, 59, 999_000_000));
             assertThat(task.getRemindAt()).isEqualTo(LocalDateTime.of(2026, 5, 31, 8, 30));
             assertThat(task.getTimezone()).isEqualTo("Asia/Shanghai");
             assertThat(task.getCompletedAt()).isNull();

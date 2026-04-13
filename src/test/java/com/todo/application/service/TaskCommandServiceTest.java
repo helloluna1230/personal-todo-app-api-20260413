@@ -69,7 +69,7 @@ class TaskCommandServiceTest {
         assertThat(task.getNote()).isEqualTo("需要附上图表");
         assertThat(task.getCategory()).isEqualTo(Category.LIFE);
         assertThat(task.getPriority()).isEqualTo(Priority.HIGH);
-        assertThat(task.getDueAt()).isEqualTo(LocalDate.of(2026, 5, 1));
+        assertThat(task.getDueAt()).isEqualTo(LocalDateTime.of(2026, 5, 1, 23, 59, 59, 999_000_000));
         assertThat(task.getRemindAt()).isEqualTo(LocalDateTime.of(2026, 5, 1, 9, 0));
         assertThat(task.getTimezone()).isEqualTo("Asia/Shanghai");
         assertThat(task.getStatus()).isEqualTo(TaskStatus.TODO);

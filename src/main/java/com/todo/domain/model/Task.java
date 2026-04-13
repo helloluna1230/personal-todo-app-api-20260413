@@ -1,7 +1,6 @@
 package com.todo.domain.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -30,7 +29,12 @@ public class Task {
     @Column(nullable = false)
     private TaskStatus status;
 
-    private LocalDate dueAt;
+    /**
+     * Deadline as a unified datetime point. Date-only inputs are normalized to 23:59:59.999
+     * of the specified date (in the user's {@code timezone}) at the input layer, so that
+     * TODAY/OVERDUE projections remain consistent across timezones.
+     */
+    private LocalDateTime dueAt;
 
     private LocalDateTime remindAt;
 
@@ -78,7 +82,7 @@ public class Task {
     public Category getCategory() { return category; }
     public Priority getPriority() { return priority; }
     public TaskStatus getStatus() { return status; }
-    public LocalDate getDueAt() { return dueAt; }
+    public LocalDateTime getDueAt() { return dueAt; }
     public LocalDateTime getRemindAt() { return remindAt; }
     public String getTimezone() { return timezone; }
     public LocalDateTime getCompletedAt() { return completedAt; }
@@ -93,7 +97,7 @@ public class Task {
         private Category category = Category.WORK;
         private Priority priority = Priority.MEDIUM;
         private TaskStatus status = TaskStatus.TODO;
-        private LocalDate dueAt;
+        private LocalDateTime dueAt;
         private LocalDateTime remindAt;
         private String timezone;
         private LocalDateTime completedAt;
@@ -105,7 +109,7 @@ public class Task {
         public Builder category(Category category) { this.category = category; return this; }
         public Builder priority(Priority priority) { this.priority = priority; return this; }
         public Builder status(TaskStatus status) { this.status = status; return this; }
-        public Builder dueAt(LocalDate dueAt) { this.dueAt = dueAt; return this; }
+        public Builder dueAt(LocalDateTime dueAt) { this.dueAt = dueAt; return this; }
         public Builder remindAt(LocalDateTime remindAt) { this.remindAt = remindAt; return this; }
         public Builder timezone(String timezone) { this.timezone = timezone; return this; }
         public Builder completedAt(LocalDateTime completedAt) { this.completedAt = completedAt; return this; }

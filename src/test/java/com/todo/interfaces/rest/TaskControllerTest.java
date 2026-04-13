@@ -64,7 +64,7 @@ class TaskControllerTest {
                 .note("需要附上图表")
                 .category(Category.LIFE)
                 .priority(Priority.HIGH)
-                .dueAt(LocalDate.of(2026, 5, 1))
+                .dueAt(LocalDateTime.of(2026, 5, 1, 23, 59, 59, 999_000_000))
                 .remindAt(LocalDateTime.of(2026, 5, 1, 9, 0))
                 .timezone("Asia/Shanghai")
                 .build();
