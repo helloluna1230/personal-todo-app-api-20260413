@@ -5,22 +5,25 @@ import com.todo.domain.model.TaskStatus;
 import com.todo.domain.model.TimeStatus;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TimeStatusServiceTest {
 
-    private final TimeStatusService timeStatusService = new TimeStatusService();
+    // Fixed "now" = 2026-04-13T12:00:00Z  (noon UTC)
+    private static final Instant NOW = Instant.parse("2026-04-13T12:00:00Z");
+    private static final Clock FIXED_CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
+
+    private final TimeStatusService timeStatusService = new TimeStatusService(FIXED_CLOCK);
 
     @Test
     void computeTimeStatus_doneTask_shouldReturnDone() {
-        Instant yesterday = LocalDate.now(ZoneOffset.UTC).minusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
         Task task = Task.builder().title("已完成")
                 .status(TaskStatus.DONE)
-                .dueAt(yesterday)
+                .dueAt(Instant.parse("2026-04-12T00:00:00Z"))
                 .timezone("UTC")
                 .build();
 
@@ -45,9 +48,9 @@ class TimeStatusServiceTest {
 
     @Test
     void computeTimeStatus_dueDateBeforeToday_shouldReturnOverdue() {
-        Instant yesterday = LocalDate.now(ZoneOffset.UTC).minusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-        Task task = Task.builder().title("逾期")
-                .dueAt(yesterday)
+        // Due yesterday — clearly overdue
+        Task task = Task.builder().title("昨日逾期")
+                .dueAt(Instant.parse("2026-04-12T23:59:59Z"))
                 .timezone("UTC")
                 .build();
 
@@ -55,10 +58,21 @@ class TimeStatusServiceTest {
     }
 
     @Test
-    void computeTimeStatus_dueDateToday_shouldReturnToday() {
-        Instant today = LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant();
-        Task task = Task.builder().title("今日到期")
-                .dueAt(today)
+    void computeTimeStatus_dueDateTodayButAlreadyPast_shouldReturnOverdue() {
+        // Due 09:00 today UTC — it is now 12:00, so the deadline has passed
+        Task task = Task.builder().title("今天早些时候逾期")
+                .dueAt(Instant.parse("2026-04-13T09:00:00Z"))
+                .timezone("UTC")
+                .build();
+
+        assertThat(timeStatusService.computeTimeStatus(task)).isEqualTo(TimeStatus.OVERDUE);
+    }
+
+    @Test
+    void computeTimeStatus_dueDateTodayAndStillFuture_shouldReturnToday() {
+        // Due 18:00 today UTC — deadline has not passed yet (now is 12:00)
+        Task task = Task.builder().title("今日到期（未来）")
+                .dueAt(Instant.parse("2026-04-13T18:00:00Z"))
                 .timezone("UTC")
                 .build();
 
@@ -67,9 +81,8 @@ class TimeStatusServiceTest {
 
     @Test
     void computeTimeStatus_dueDateAfterToday_shouldReturnUpcoming() {
-        Instant tomorrow = LocalDate.now(ZoneOffset.UTC).plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
         Task task = Task.builder().title("未来任务")
-                .dueAt(tomorrow)
+                .dueAt(Instant.parse("2026-04-14T00:00:00Z"))
                 .timezone("UTC")
                 .build();
 
