@@ -12,6 +12,8 @@ import org.springframework.util.StringUtils;
 @Service
 public class TaskCommandService {
 
+    private static final int TITLE_MAX_LENGTH = 120;
+
     private final TaskRepository taskRepository;
 
     public TaskCommandService(TaskRepository taskRepository) {
@@ -20,20 +22,25 @@ public class TaskCommandService {
 
     @Transactional
     public Task createTask(CreateTaskRequest request) {
-        if (!StringUtils.hasText(request.getTitle())) {
+        String rawTitle = request.getTitle();
+        if (!StringUtils.hasText(rawTitle)) {
             throw new IllegalArgumentException("请输入待办标题");
+        }
+        String title = rawTitle.trim();
+        if (title.length() > TITLE_MAX_LENGTH) {
+            throw new IllegalArgumentException("待办标题不能超过120个字符");
         }
 
         Category category = request.getCategory() != null ? request.getCategory() : Category.WORK;
         Priority priority = request.getPriority() != null ? request.getPriority() : Priority.MEDIUM;
 
         Task task = Task.builder()
-                .title(request.getTitle().trim())
-                .notes(request.getNotes())
+                .title(title)
+                .note(request.getNote())
                 .category(category)
                 .priority(priority)
-                .dueDate(request.getDueDate())
-                .reminderTime(request.getReminderTime())
+                .dueAt(request.getDueAt())
+                .remindAt(request.getRemindAt())
                 .build();
 
         return taskRepository.save(task);

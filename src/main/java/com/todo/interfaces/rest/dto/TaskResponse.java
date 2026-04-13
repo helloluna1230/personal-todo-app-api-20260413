@@ -13,38 +13,44 @@ public class TaskResponse {
 
     private String id;
     private String title;
-    private String notes;
+    private String note;
     private Category category;
     private Priority priority;
     private TaskStatus status;
-    private LocalDate dueDate;
-    private LocalTime reminderTime;
+    private LocalDate dueAt;
+    private LocalTime remindAt;
+    private LocalDateTime completedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Long version;
 
     public static TaskResponse from(Task task) {
         TaskResponse response = new TaskResponse();
         response.id = task.getId();
         response.title = task.getTitle();
-        response.notes = task.getNotes();
+        response.note = task.getNote();
         response.category = task.getCategory();
         response.priority = task.getPriority();
         response.status = task.getStatus();
-        response.dueDate = task.getDueDate();
-        response.reminderTime = task.getReminderTime();
+        response.dueAt = task.getDueAt();
+        response.remindAt = task.getRemindAt();
+        response.completedAt = task.getCompletedAt();
         response.createdAt = task.getCreatedAt();
         response.updatedAt = task.getUpdatedAt();
+        response.version = task.getVersion();
         return response;
     }
 
     public String getId() { return id; }
     public String getTitle() { return title; }
-    public String getNotes() { return notes; }
+    public String getNote() { return note; }
     public Category getCategory() { return category; }
     public Priority getPriority() { return priority; }
     public TaskStatus getStatus() { return status; }
-    public LocalDate getDueDate() { return dueDate; }
-    public LocalTime getReminderTime() { return reminderTime; }
+    public LocalDate getDueAt() { return dueAt; }
+    public LocalTime getRemindAt() { return remindAt; }
+    public LocalDateTime getCompletedAt() { return completedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public Long getVersion() { return version; }
 }

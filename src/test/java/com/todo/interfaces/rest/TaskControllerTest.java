@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.todo.domain.model.Category;
 import com.todo.domain.model.Priority;
 import com.todo.domain.model.Task;
-import com.todo.domain.model.TaskStatus;
 import com.todo.application.service.TaskCommandService;
 import com.todo.interfaces.rest.dto.CreateTaskRequest;
 import org.junit.jupiter.api.Test;
@@ -15,7 +14,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -63,30 +61,30 @@ class TaskControllerTest {
     void createTask_withAllFields_shouldReturn201() throws Exception {
         Task mockTask = Task.builder()
                 .title("完成报告")
-                .notes("需要附上图表")
-                .category(Category.PERSONAL)
+                .note("需要附上图表")
+                .category(Category.LIFE)
                 .priority(Priority.HIGH)
-                .dueDate(LocalDate.of(2026, 5, 1))
-                .reminderTime(LocalTime.of(9, 0))
+                .dueAt(LocalDate.of(2026, 5, 1))
+                .remindAt(LocalTime.of(9, 0))
                 .build();
 
         when(taskCommandService.createTask(any(CreateTaskRequest.class))).thenReturn(mockTask);
 
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle("完成报告");
-        request.setNotes("需要附上图表");
-        request.setCategory(Category.PERSONAL);
+        request.setNote("需要附上图表");
+        request.setCategory(Category.LIFE);
         request.setPriority(Priority.HIGH);
-        request.setDueDate(LocalDate.of(2026, 5, 1));
-        request.setReminderTime(LocalTime.of(9, 0));
+        request.setDueAt(LocalDate.of(2026, 5, 1));
+        request.setRemindAt(LocalTime.of(9, 0));
 
         mockMvc.perform(post("/api/tasks")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.title").value("完成报告"))
-                .andExpect(jsonPath("$.notes").value("需要附上图表"))
-                .andExpect(jsonPath("$.category").value("PERSONAL"))
+                .andExpect(jsonPath("$.note").value("需要附上图表"))
+                .andExpect(jsonPath("$.category").value("LIFE"))
                 .andExpect(jsonPath("$.priority").value("HIGH"));
     }
 
@@ -99,7 +97,8 @@ class TaskControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("请输入待办标题"));
+                .andExpect(jsonPath("$.errors[0].field").value("title"))
+                .andExpect(jsonPath("$.errors[0].message").value("请输入待办标题"));
     }
 
     @Test
@@ -110,6 +109,7 @@ class TaskControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("请输入待办标题"));
+                .andExpect(jsonPath("$.errors[0].field").value("title"))
+                .andExpect(jsonPath("$.errors[0].message").value("请输入待办标题"));
     }
 }

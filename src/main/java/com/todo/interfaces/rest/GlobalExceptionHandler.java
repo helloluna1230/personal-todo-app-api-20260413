@@ -1,5 +1,7 @@
 package com.todo.interfaces.rest;
 
+import com.todo.interfaces.rest.dto.ApiErrorResponse;
+import com.todo.interfaces.rest.dto.ApiErrorResponse.ApiError;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -7,27 +9,23 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationErrors(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
-            String message = error.getDefaultMessage();
-            errors.put(fieldName, message);
-        });
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+    public ResponseEntity<ApiErrorResponse> handleValidationErrors(MethodArgumentNotValidException ex) {
+        List<ApiError> errors = ex.getBindingResult().getFieldErrors().stream()
+                .map(fieldError -> new ApiError(fieldError.getField(), fieldError.getDefaultMessage()))
+                .collect(Collectors.toList());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiErrorResponse(errors));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
-        Map<String, String> error = new HashMap<>();
-        error.put("message", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    public ResponseEntity<ApiErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        List<ApiError> errors = List.of(new ApiError(null, ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiErrorResponse(errors));
     }
 }

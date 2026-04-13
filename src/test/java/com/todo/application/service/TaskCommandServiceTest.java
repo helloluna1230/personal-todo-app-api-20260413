@@ -56,20 +56,20 @@ class TaskCommandServiceTest {
         stubSave();
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle("完成报告");
-        request.setNotes("需要附上图表");
-        request.setCategory(Category.PERSONAL);
+        request.setNote("需要附上图表");
+        request.setCategory(Category.LIFE);
         request.setPriority(Priority.HIGH);
-        request.setDueDate(LocalDate.of(2026, 5, 1));
-        request.setReminderTime(LocalTime.of(9, 0));
+        request.setDueAt(LocalDate.of(2026, 5, 1));
+        request.setRemindAt(LocalTime.of(9, 0));
 
         Task task = taskCommandService.createTask(request);
 
         assertThat(task.getTitle()).isEqualTo("完成报告");
-        assertThat(task.getNotes()).isEqualTo("需要附上图表");
-        assertThat(task.getCategory()).isEqualTo(Category.PERSONAL);
+        assertThat(task.getNote()).isEqualTo("需要附上图表");
+        assertThat(task.getCategory()).isEqualTo(Category.LIFE);
         assertThat(task.getPriority()).isEqualTo(Priority.HIGH);
-        assertThat(task.getDueDate()).isEqualTo(LocalDate.of(2026, 5, 1));
-        assertThat(task.getReminderTime()).isEqualTo(LocalTime.of(9, 0));
+        assertThat(task.getDueAt()).isEqualTo(LocalDate.of(2026, 5, 1));
+        assertThat(task.getRemindAt()).isEqualTo(LocalTime.of(9, 0));
         assertThat(task.getStatus()).isEqualTo(TaskStatus.TODO);
     }
 
@@ -101,6 +101,27 @@ class TaskCommandServiceTest {
         assertThatThrownBy(() -> taskCommandService.createTask(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("请输入待办标题");
+    }
+
+    @Test
+    void createTask_withTitleExceeding120Chars_shouldThrowException() {
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setTitle("a".repeat(121));
+
+        assertThatThrownBy(() -> taskCommandService.createTask(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("待办标题不能超过120个字符");
+    }
+
+    @Test
+    void createTask_withTitleExactly120Chars_shouldSucceed() {
+        stubSave();
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setTitle("a".repeat(120));
+
+        Task task = taskCommandService.createTask(request);
+
+        assertThat(task.getTitle()).hasSize(120);
     }
 
     @Test
@@ -136,5 +157,17 @@ class TaskCommandServiceTest {
         Task task = taskCommandService.createTask(request);
 
         assertThat(task.getTitle()).isEqualTo("买菜");
+    }
+
+    @Test
+    void createTask_titleLength120AfterTrim_shouldSucceed() {
+        stubSave();
+        String paddedTitle = "  " + "a".repeat(120) + "  ";
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setTitle(paddedTitle);
+
+        Task task = taskCommandService.createTask(request);
+
+        assertThat(task.getTitle()).hasSize(120);
     }
 }
