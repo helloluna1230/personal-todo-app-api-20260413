@@ -3,6 +3,7 @@ package com.todo.application.service;
 import com.todo.domain.model.Category;
 import com.todo.domain.model.Task;
 import com.todo.domain.model.TaskStatus;
+import com.todo.domain.model.TimeStatus;
 import com.todo.domain.repository.TaskRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,8 +17,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -26,6 +25,9 @@ class TaskQueryServiceTest {
 
     @Mock
     private TaskRepository taskRepository;
+
+    @Mock
+    private TimeStatusService timeStatusService;
 
     @InjectMocks
     private TaskQueryService taskQueryService;
@@ -73,26 +75,43 @@ class TaskQueryServiceTest {
     }
 
     @Test
-    void getToday_shouldReturnIncompleteTasksDueTodayOrOverdue() {
+    void getToday_shouldIncludeTasksWithTodayOrOverdueStatus() {
         Task overdueTask = Task.builder().title("逾期任务")
                 .dueDate(LocalDate.now().minusDays(1)).build();
         Task todayTask = Task.builder().title("今日任务")
                 .dueDate(LocalDate.now()).build();
-        when(taskRepository.findByStatusNotAndDueDateLessThanEqual(
-                eq(TaskStatus.DONE), any(LocalDate.class)))
-                .thenReturn(Arrays.asList(overdueTask, todayTask));
+        Task upcomingTask = Task.builder().title("未来任务")
+                .dueDate(LocalDate.now().plusDays(1)).build();
+        when(taskRepository.findByStatusNot(TaskStatus.DONE))
+                .thenReturn(Arrays.asList(overdueTask, todayTask, upcomingTask));
+        when(timeStatusService.computeTimeStatus(overdueTask)).thenReturn(TimeStatus.OVERDUE);
+        when(timeStatusService.computeTimeStatus(todayTask)).thenReturn(TimeStatus.TODAY);
+        when(timeStatusService.computeTimeStatus(upcomingTask)).thenReturn(TimeStatus.UPCOMING);
 
         List<Task> result = taskQueryService.getToday();
 
-        assertThat(result).hasSize(2);
-        verify(taskRepository).findByStatusNotAndDueDateLessThanEqual(
-                eq(TaskStatus.DONE), any(LocalDate.class));
+        assertThat(result).hasSize(2).containsExactly(overdueTask, todayTask);
+        verify(taskRepository).findByStatusNot(TaskStatus.DONE);
+    }
+
+    @Test
+    void getToday_shouldExcludeUpcomingAndNoDueDateTasks() {
+        Task noDueTask = Task.builder().title("无截止日").build();
+        Task upcomingTask = Task.builder().title("未来任务")
+                .dueDate(LocalDate.now().plusDays(5)).build();
+        when(taskRepository.findByStatusNot(TaskStatus.DONE))
+                .thenReturn(Arrays.asList(noDueTask, upcomingTask));
+        when(timeStatusService.computeTimeStatus(noDueTask)).thenReturn(TimeStatus.NO_DUE_DATE);
+        when(timeStatusService.computeTimeStatus(upcomingTask)).thenReturn(TimeStatus.UPCOMING);
+
+        List<Task> result = taskQueryService.getToday();
+
+        assertThat(result).isEmpty();
     }
 
     @Test
     void getToday_whenEmpty_shouldReturnEmptyList() {
-        when(taskRepository.findByStatusNotAndDueDateLessThanEqual(
-                eq(TaskStatus.DONE), any(LocalDate.class)))
+        when(taskRepository.findByStatusNot(TaskStatus.DONE))
                 .thenReturn(Collections.emptyList());
 
         List<Task> result = taskQueryService.getToday();

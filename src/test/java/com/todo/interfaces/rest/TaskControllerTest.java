@@ -3,10 +3,12 @@ package com.todo.interfaces.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.todo.application.service.TaskCommandService;
 import com.todo.application.service.TaskQueryService;
+import com.todo.application.service.TimeStatusService;
 import com.todo.domain.model.Category;
 import com.todo.domain.model.Priority;
 import com.todo.domain.model.Task;
 import com.todo.domain.model.TaskStatus;
+import com.todo.domain.model.TimeStatus;
 import com.todo.interfaces.rest.dto.CreateTaskRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +43,9 @@ class TaskControllerTest {
     @MockBean
     private TaskQueryService taskQueryService;
 
+    @MockBean
+    private TimeStatusService timeStatusService;
+
     @Test
     void createTask_withValidRequest_shouldReturn201() throws Exception {
         Task mockTask = Task.builder()
@@ -50,6 +55,7 @@ class TaskControllerTest {
                 .build();
 
         when(taskCommandService.createTask(any(CreateTaskRequest.class))).thenReturn(mockTask);
+        when(timeStatusService.computeTimeStatus(mockTask)).thenReturn(TimeStatus.NO_DUE_DATE);
 
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle("买牛奶");
@@ -77,6 +83,7 @@ class TaskControllerTest {
                 .build();
 
         when(taskCommandService.createTask(any(CreateTaskRequest.class))).thenReturn(mockTask);
+        when(timeStatusService.computeTimeStatus(mockTask)).thenReturn(TimeStatus.UPCOMING);
 
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle("完成报告");
@@ -112,6 +119,7 @@ class TaskControllerTest {
         Task task1 = Task.builder().title("任务1").category(Category.WORK).build();
         Task task2 = Task.builder().title("任务2").category(Category.PERSONAL).build();
         when(taskQueryService.getAll()).thenReturn(Arrays.asList(task1, task2));
+        when(timeStatusService.computeTimeStatus(any())).thenReturn(TimeStatus.NO_DUE_DATE);
 
         mockMvc.perform(get("/api/tasks"))
                 .andExpect(status().isOk())
@@ -122,6 +130,7 @@ class TaskControllerTest {
     void listTasks_viewAll_shouldReturnAllTasks() throws Exception {
         Task task1 = Task.builder().title("任务1").category(Category.WORK).build();
         when(taskQueryService.getAll()).thenReturn(Collections.singletonList(task1));
+        when(timeStatusService.computeTimeStatus(task1)).thenReturn(TimeStatus.NO_DUE_DATE);
 
         mockMvc.perform(get("/api/tasks").param("view", "all"))
                 .andExpect(status().isOk())
@@ -143,6 +152,7 @@ class TaskControllerTest {
         Task workTask = Task.builder().title("工作任务").category(Category.WORK).build();
         when(taskQueryService.getByCategory(Category.WORK))
                 .thenReturn(Collections.singletonList(workTask));
+        when(timeStatusService.computeTimeStatus(workTask)).thenReturn(TimeStatus.NO_DUE_DATE);
 
         mockMvc.perform(get("/api/tasks")
                         .param("view", "category")
@@ -177,10 +187,14 @@ class TaskControllerTest {
         Task todayTask = Task.builder().title("今日任务")
                 .dueDate(LocalDate.now()).build();
         when(taskQueryService.getToday()).thenReturn(Arrays.asList(overdueTask, todayTask));
+        when(timeStatusService.computeTimeStatus(overdueTask)).thenReturn(TimeStatus.OVERDUE);
+        when(timeStatusService.computeTimeStatus(todayTask)).thenReturn(TimeStatus.TODAY);
 
         mockMvc.perform(get("/api/tasks").param("view", "today"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].timeStatus").value("OVERDUE"))
+                .andExpect(jsonPath("$[1].timeStatus").value("TODAY"));
     }
 
     @Test
@@ -193,22 +207,44 @@ class TaskControllerTest {
     }
 
     @Test
-    void listTasks_response_shouldIncludeTimeStatus() throws Exception {
-        Task overdueTask = Task.builder().title("逾期任务")
-                .dueDate(LocalDate.now().minusDays(1)).build();
-        Task todayTask = Task.builder().title("今日任务")
-                .dueDate(LocalDate.now()).build();
-        Task futureTask = Task.builder().title("未来任务")
-                .dueDate(LocalDate.now().plusDays(1)).build();
-        Task noDateTask = Task.builder().title("无截止日任务").build();
-        when(taskQueryService.getAll()).thenReturn(
-                Arrays.asList(overdueTask, todayTask, futureTask, noDateTask));
+    void listTasks_invalidView_shouldReturn400() throws Exception {
+        mockMvc.perform(get("/api/tasks").param("view", "invalid"))
+                .andExpect(status().isBadRequest());
+    }
 
-        mockMvc.perform(get("/api/tasks"))
+    @Test
+    void listTasks_response_doneTask_shouldHaveDoneTimeStatus() throws Exception {
+        Task doneTask = Task.builder().title("已完成任务")
+                .status(TaskStatus.DONE)
+                .dueDate(LocalDate.now().minusDays(1)).build();
+        when(taskQueryService.getAll()).thenReturn(Collections.singletonList(doneTask));
+        when(timeStatusService.computeTimeStatus(doneTask)).thenReturn(TimeStatus.DONE);
+
+        mockMvc.perform(get("/api/tasks").param("view", "all"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].timeStatus").value("OVERDUE"))
-                .andExpect(jsonPath("$[1].timeStatus").value("TODAY"))
-                .andExpect(jsonPath("$[2].timeStatus").value("FUTURE"))
-                .andExpect(jsonPath("$[3].timeStatus").value("NONE"));
+                .andExpect(jsonPath("$[0].timeStatus").value("DONE"));
+    }
+
+    @Test
+    void listTasks_response_noDueDateTask_shouldHaveNoDueDateTimeStatus() throws Exception {
+        Task noDueTask = Task.builder().title("无截止日任务").build();
+        when(taskQueryService.getAll()).thenReturn(Collections.singletonList(noDueTask));
+        when(timeStatusService.computeTimeStatus(noDueTask)).thenReturn(TimeStatus.NO_DUE_DATE);
+
+        mockMvc.perform(get("/api/tasks").param("view", "all"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].timeStatus").value("NO_DUE_DATE"));
+    }
+
+    @Test
+    void listTasks_response_futureTask_shouldHaveUpcomingTimeStatus() throws Exception {
+        Task futureTask = Task.builder().title("未来任务")
+                .dueDate(LocalDate.now().plusDays(3)).build();
+        when(taskQueryService.getAll()).thenReturn(Collections.singletonList(futureTask));
+        when(timeStatusService.computeTimeStatus(futureTask)).thenReturn(TimeStatus.UPCOMING);
+
+        mockMvc.perform(get("/api/tasks").param("view", "all"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].timeStatus").value("UPCOMING"));
     }
 }

@@ -1,5 +1,6 @@
 package com.todo.interfaces.rest.dto;
 
+import com.todo.application.service.TimeStatusService;
 import com.todo.domain.model.Category;
 import com.todo.domain.model.Priority;
 import com.todo.domain.model.Task;
@@ -24,7 +25,7 @@ public class TaskResponse {
     private LocalDateTime updatedAt;
     private TimeStatus timeStatus;
 
-    public static TaskResponse from(Task task) {
+    public static TaskResponse from(Task task, TimeStatusService timeStatusService) {
         TaskResponse response = new TaskResponse();
         response.id = task.getId();
         response.title = task.getTitle();
@@ -36,23 +37,8 @@ public class TaskResponse {
         response.reminderTime = task.getReminderTime();
         response.createdAt = task.getCreatedAt();
         response.updatedAt = task.getUpdatedAt();
-        response.timeStatus = computeTimeStatus(task);
+        response.timeStatus = timeStatusService.computeTimeStatus(task);
         return response;
-    }
-
-    private static TimeStatus computeTimeStatus(Task task) {
-        if (task.getDueDate() == null) {
-            return TimeStatus.NONE;
-        }
-        LocalDate today = LocalDate.now();
-        LocalDate due = task.getDueDate();
-        if (due.isBefore(today)) {
-            return TimeStatus.OVERDUE;
-        } else if (due.isEqual(today)) {
-            return TimeStatus.TODAY;
-        } else {
-            return TimeStatus.FUTURE;
-        }
     }
 
     public String getId() { return id; }
