@@ -4,6 +4,7 @@ const { TimeStatus, computeTimeStatus, getTaskProjection, isSameCalendarDay, nor
 const { TaskStatus } = require('../src/models/task');
 const taskService = require('../src/services/taskService');
 const reminderService = require('../src/services/reminderService');
+const projectionStore = require('../src/services/projectionStore');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -27,7 +28,7 @@ function makeTask(overrides = {}) {
 }
 
 beforeEach(() => {
-  taskService.clearAll();
+  taskService.clearAll(); // also clears projectionStore via clearAll()
   reminderService.scheduledReminders.clear();
 });
 
@@ -366,3 +367,90 @@ describe('[Integration] route projection contract matches documentation', () => 
   });
 });
 
+// ---------------------------------------------------------------------------
+// Integration — projectionStore shared read model
+// ---------------------------------------------------------------------------
+
+describe('[Integration] projectionStore — shared read model', () => {
+  test('addTask populates projectionStore via task.created event', () => {
+    expect(projectionStore.getAllProjections()).toHaveLength(0);
+
+    const task = taskService.addTask({ title: 'Read model task' });
+
+    expect(projectionStore.getProjection(task.id)).not.toBeNull();
+  });
+
+  test('getProjection returns the correct projection from the store', () => {
+    const pastDue = new Date(Date.now() - 60_000);
+    const task = taskService.addTask({ title: 'Stored task', dueAt: pastDue });
+
+    const projection = projectionStore.getProjection(task.id);
+
+    expect(projection).not.toBeNull();
+    expect(projection.id).toBe(task.id);
+    expect(projection.timeStatus).toBe(TimeStatus.OVERDUE);
+  });
+
+  test('getProjection returns null for an unknown taskId', () => {
+    expect(projectionStore.getProjection('non-existent-id')).toBeNull();
+  });
+
+  test('task.completed event updates the stored snapshot so getProjection returns DONE', () => {
+    const pastDue = new Date(Date.now() - 60_000);
+    const task = taskService.addTask({ title: 'Will be completed', dueAt: pastDue });
+
+    // Store reflects OVERDUE before completion
+    expect(projectionStore.getProjection(task.id).timeStatus).toBe(TimeStatus.OVERDUE);
+
+    taskService.completeTask(task.id);
+
+    // Store now reflects the updated task snapshot: timeStatus → DONE
+    expect(projectionStore.getProjection(task.id).timeStatus).toBe(TimeStatus.DONE);
+  });
+
+  test('getTaskWithProjection reads from projectionStore (not computing fresh)', () => {
+    const task = taskService.addTask({ title: 'Delegation test' });
+
+    // Both APIs should return the same projection (same data source)
+    const viaStore = projectionStore.getProjection(task.id);
+    const viaService = taskService.getTaskWithProjection(task.id);
+
+    expect(viaService.id).toBe(viaStore.id);
+    expect(viaService.timeStatus).toBe(viaStore.timeStatus);
+  });
+
+  test('getAllProjections returns projections for all tasks in the store', () => {
+    taskService.addTask({ title: 'Task A' });
+    taskService.addTask({ title: 'Task B' });
+    taskService.addTask({ title: 'Task C' });
+
+    const all = projectionStore.getAllProjections();
+
+    expect(all).toHaveLength(3);
+    all.forEach((p) => expect(p).toHaveProperty('timeStatus'));
+  });
+
+  test('clearAll empties the store (test isolation)', () => {
+    taskService.addTask({ title: 'Ephemeral task' });
+    expect(projectionStore.getAllProjections()).toHaveLength(1);
+
+    projectionStore.clearAll();
+
+    expect(projectionStore.getAllProjections()).toHaveLength(0);
+  });
+
+  test('multiple consumers receive identical projections from the same store', () => {
+    const pastDue = new Date(Date.now() - 60_000);
+    const task = taskService.addTask({ title: 'Multi-consumer', dueAt: pastDue });
+    const now = new Date();
+
+    // Simulate today-view, homepage, and reminder panel all reading the same store
+    const todayView = projectionStore.getProjection(task.id, now);
+    const homepage = projectionStore.getProjection(task.id, now);
+    const reminderPanel = projectionStore.getProjection(task.id, now);
+
+    expect(todayView.timeStatus).toBe(TimeStatus.OVERDUE);
+    expect(homepage.timeStatus).toBe(todayView.timeStatus);
+    expect(reminderPanel.timeStatus).toBe(todayView.timeStatus);
+  });
+});

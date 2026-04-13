@@ -2,7 +2,7 @@
 
 const { TaskStatus, createTask } = require('../models/task');
 const emitter = require('../events/eventEmitter');
-const { getTaskProjection } = require('../utils/timeProjection');
+const projectionStore = require('./projectionStore');
 
 /**
  * In-memory task store.
@@ -13,12 +13,15 @@ const taskStore = new Map();
 /**
  * Add a task to the store.
  *
+ * Emits `task.created` so the projectionStore read model is kept in sync.
+ *
  * @param {Object} params
  * @returns {Object} task
  */
 function addTask(params) {
   const task = createTask(params);
   taskStore.set(task.id, task);
+  emitter.emit('task.created', { taskId: task.id, task });
   return task;
 }
 
@@ -38,7 +41,7 @@ function findById(id) {
  * - If the task is already DONE the method returns it unchanged.
  * - Sets `status` to DONE and records `completedAt`.
  * - Publishes a `task.completed` domain event so downstream services
- *   (e.g. ReminderService) can cancel any future reminders.
+ *   (e.g. ReminderService, projectionStore) can react accordingly.
  *
  * @param {string} taskId
  * @returns {Object} updated task
@@ -61,14 +64,18 @@ function completeTask(taskId) {
   task.completedAt = new Date();
   task.updatedAt = new Date();
 
-  // Publish domain event → triggers reminder cancellation
+  // Publish domain event → triggers reminder cancellation and projection update
   emitter.emit('task.completed', { taskId: task.id, task });
 
   return task;
 }
 
 /**
- * Return the task enriched with its computed time-projection status.
+ * Return the task_time_projection for a task.
+ *
+ * Reads from the shared projectionStore read model (owned by deadline-reminder)
+ * rather than computing a fresh projection inline.  This ensures today-view,
+ * the homepage, and the reminder panel all consume the same state source.
  *
  * @param {string} taskId
  * @param {Date}  [now] - Current time; defaults to new Date()
@@ -76,20 +83,23 @@ function completeTask(taskId) {
  * @throws {Error} when the task is not found
  */
 function getTaskWithProjection(taskId, now = new Date()) {
-  const task = taskStore.get(taskId);
-  if (!task) {
+  const projection = projectionStore.getProjection(taskId, now);
+  if (!projection) {
     const err = new Error(`Task not found: ${taskId}`);
     err.code = 'TASK_NOT_FOUND';
     throw err;
   }
-  return getTaskProjection(task, now);
+  return projection;
 }
 
 /**
- * Clear all tasks from the store (useful for test isolation).
+ * Clear all tasks from the store and the projection read model
+ * (useful for test isolation).
  */
 function clearAll() {
   taskStore.clear();
+  projectionStore.clearAll();
 }
 
 module.exports = { addTask, findById, completeTask, getTaskWithProjection, clearAll, taskStore };
+
