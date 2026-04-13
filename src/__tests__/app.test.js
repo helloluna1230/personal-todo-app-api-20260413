@@ -165,6 +165,34 @@ describe('Category management via TaskCommandService', () => {
     expect(res.body.category).toBe('WORK');
   });
 
+  it('POST /tasks — accepts a valid IANA timezone', async () => {
+    const res = await request(app).post('/tasks').send({ title: 'Taipei task', timezone: 'Asia/Taipei' });
+    expect(res.status).toBe(201);
+    expect(res.body.timezone).toBe('Asia/Taipei');
+  });
+
+  it('POST /tasks — rejects an invalid timezone', async () => {
+    const res = await request(app).post('/tasks').send({ title: 'Bad tz', timezone: 'Not/ATimezone' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/Invalid timezone/);
+  });
+
+  it('PATCH /tasks/:id — accepts a valid IANA timezone update', async () => {
+    const createRes = await request(app).post('/tasks').send({ title: 'TZ update task' });
+    const id = createRes.body.id;
+    const res = await request(app).patch(`/tasks/${id}`).send({ timezone: 'America/New_York' });
+    expect(res.status).toBe(200);
+    expect(res.body.timezone).toBe('America/New_York');
+  });
+
+  it('PATCH /tasks/:id — rejects an invalid timezone', async () => {
+    const createRes = await request(app).post('/tasks').send({ title: 'Bad tz patch' });
+    const id = createRes.body.id;
+    const res = await request(app).patch(`/tasks/${id}`).send({ timezone: 'Invalid/Zone' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/Invalid timezone/);
+  });
+
   it('DELETE /tasks/:id — deletes a task', async () => {
     const res = await request(app).delete(`/tasks/${taskId}`);
     expect(res.status).toBe(204);

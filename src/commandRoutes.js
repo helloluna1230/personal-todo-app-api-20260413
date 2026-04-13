@@ -1,6 +1,6 @@
 const express = require('express');
 const { VALID_CATEGORIES } = require('./category');
-const { VALID_STATUSES, VALID_PRIORITIES, createTask, updateTask, deleteTask } = require('./taskCommandService');
+const { VALID_STATUSES, VALID_PRIORITIES, isValidTimezone, createTask, updateTask, deleteTask } = require('./taskCommandService');
 
 /**
  * TaskCommandService HTTP routes.
@@ -29,6 +29,9 @@ router.post('/', (req, res) => {
   if (priority && !VALID_PRIORITIES.includes(priority)) {
     return res.status(400).json({ error: `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(', ')}` });
   }
+  if (timezone && !isValidTimezone(timezone)) {
+    return res.status(400).json({ error: `Invalid timezone. Must be a valid IANA timezone identifier (e.g. UTC, Asia/Taipei).` });
+  }
   const task = createTask({ title: title.trim(), status, priority, category, dueAt, remindAt, timezone });
   res.status(201).json(task);
 });
@@ -42,6 +45,9 @@ router.patch('/:id', (req, res) => {
   }
   if (priority && !VALID_PRIORITIES.includes(priority)) {
     return res.status(400).json({ error: `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(', ')}` });
+  }
+  if (timezone && !isValidTimezone(timezone)) {
+    return res.status(400).json({ error: `Invalid timezone. Must be a valid IANA timezone identifier (e.g. UTC, Asia/Taipei).` });
   }
   const task = updateTask(Number(req.params.id), { title, status, priority, category, dueAt, remindAt, timezone });
   if (!task) return res.status(404).json({ error: 'Task not found' });

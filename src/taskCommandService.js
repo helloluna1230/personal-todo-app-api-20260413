@@ -6,6 +6,21 @@ const VALID_STATUSES = ['TODO', 'DONE'];
 const VALID_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
 
 /**
+ * Returns true if the given string is a recognised IANA timezone identifier.
+ * Uses Intl.DateTimeFormat construction which accepts all valid IANA identifiers
+ * (including 'UTC') and throws a RangeError for invalid ones.
+ */
+function isValidTimezone(tz) {
+  if (!tz || typeof tz !== 'string') return false;
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * TaskCommandService — the single-writer entry point for the Task aggregate.
  * All state-mutating operations on tasks MUST go through this service to
  * preserve the single-writer boundary defined in the main architecture.
@@ -17,6 +32,9 @@ function createTask({ title, status, priority, category, dueAt, remindAt, timezo
   const resolvedStatus = VALID_STATUSES.includes(status) ? status : 'TODO';
   const resolvedPriority = VALID_PRIORITIES.includes(priority) ? priority : 'MEDIUM';
   const resolvedTimezone = timezone || 'UTC';
+  if (!isValidTimezone(resolvedTimezone)) {
+    throw new Error(`Invalid timezone: "${resolvedTimezone}". Must be a valid IANA timezone identifier (e.g. UTC, Asia/Taipei).`);
+  }
 
   const result = db
     .prepare(
@@ -41,6 +59,9 @@ function updateTask(id, { title, status, priority, category, dueAt, remindAt, ti
   const newDueAt = dueAt !== undefined ? dueAt || null : existing.dueAt;
   const newRemindAt = remindAt !== undefined ? remindAt || null : existing.remindAt;
   const newTimezone = timezone !== undefined ? timezone || 'UTC' : existing.timezone;
+  if (timezone !== undefined && !isValidTimezone(newTimezone)) {
+    throw new Error(`Invalid timezone: "${newTimezone}". Must be a valid IANA timezone identifier (e.g. UTC, Asia/Taipei).`);
+  }
 
   // Set completedAt when transitioning to DONE; clear it when reverting to TODO
   let completedAt = existing.completedAt;
@@ -68,4 +89,4 @@ function deleteTask(id) {
   return result.changes > 0;
 }
 
-module.exports = { createTask, updateTask, deleteTask, VALID_STATUSES, VALID_PRIORITIES };
+module.exports = { createTask, updateTask, deleteTask, VALID_STATUSES, VALID_PRIORITIES, isValidTimezone };
