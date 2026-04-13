@@ -15,6 +15,9 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   dueAt?: Date | null;
+  /** IANA timezone identifier (e.g. "America/New_York"). When set, OVERDUE/TODAY
+   *  boundaries are computed in this timezone rather than UTC. */
+  timezone?: string;
   createdAt: Date;
 }
 
