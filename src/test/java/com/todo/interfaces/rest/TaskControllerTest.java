@@ -51,7 +51,8 @@ class TaskControllerTest {
                 .andExpect(jsonPath("$.id").value(savedTask.getId()))
                 .andExpect(jsonPath("$.priority").value("HIGH"))
                 .andExpect(jsonPath("$.status").value("TODO"))
-                .andExpect(jsonPath("$.version").isNumber());
+                .andExpect(jsonPath("$.version").isNumber())
+                .andExpect(jsonPath("$.timezone").doesNotExist());
 
         Task persisted = taskRepository.findById(savedTask.getId()).orElseThrow();
         assertThat(persisted.getPriority()).isEqualTo(Priority.HIGH);
@@ -126,5 +127,23 @@ class TaskControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.priority").value("HIGH"));
+    }
+
+    @Test
+    void updatePriority_taskWithTimezone_shouldReturnTimezoneInResponse() throws Exception {
+        Task taskWithTz = taskRepository.save(
+                Task.builder().title("时区任务").timezone("Asia/Shanghai").build());
+
+        UpdatePriorityRequest request = new UpdatePriorityRequest();
+        request.setPriority(Priority.HIGH);
+
+        mockMvc.perform(patch("/api/tasks/" + taskWithTz.getId() + "/priority")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.timezone").value("Asia/Shanghai"));
+
+        Task persisted = taskRepository.findById(taskWithTz.getId()).orElseThrow();
+        assertThat(persisted.getTimezone()).isEqualTo("Asia/Shanghai");
     }
 }

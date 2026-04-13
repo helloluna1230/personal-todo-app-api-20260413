@@ -21,6 +21,7 @@ public class TaskResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Long version;
+    private String timezone;
 
     public static TaskResponse from(Task task) {
         TaskResponse response = new TaskResponse();
@@ -36,6 +37,7 @@ public class TaskResponse {
         response.createdAt = task.getCreatedAt();
         response.updatedAt = task.getUpdatedAt();
         response.version = task.getVersion();
+        response.timezone = task.getTimezone();
         return response;
     }
 
@@ -51,4 +53,5 @@ public class TaskResponse {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public Long getVersion() { return version; }
+    public String getTimezone() { return timezone; }
 }

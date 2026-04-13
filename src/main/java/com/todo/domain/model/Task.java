@@ -44,6 +44,8 @@ public class Task {
     @Version
     private Long version;
 
+    private String timezone;
+
     protected Task() {}
 
     private Task(Builder builder) {
@@ -58,6 +60,7 @@ public class Task {
         this.completedAt = builder.completedAt;
         this.createdAt = builder.createdAt;
         this.updatedAt = builder.updatedAt;
+        this.timezone = builder.timezone;
     }
 
     public static Builder builder() {
@@ -76,6 +79,7 @@ public class Task {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public Long getVersion() { return version; }
+    public String getTimezone() { return timezone; }
 
     public void setPriority(Priority priority) { this.priority = priority; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
@@ -92,6 +96,7 @@ public class Task {
         private LocalDateTime completedAt;
         private LocalDateTime createdAt = LocalDateTime.now();
         private LocalDateTime updatedAt = LocalDateTime.now();
+        private String timezone;
 
         public Builder title(String title) { this.title = title; return this; }
         public Builder note(String note) { this.note = note; return this; }
@@ -101,6 +106,7 @@ public class Task {
         public Builder dueAt(LocalDateTime dueAt) { this.dueAt = dueAt; return this; }
         public Builder remindAt(LocalDateTime remindAt) { this.remindAt = remindAt; return this; }
         public Builder completedAt(LocalDateTime completedAt) { this.completedAt = completedAt; return this; }
+        public Builder timezone(String timezone) { this.timezone = timezone; return this; }
 
         public Task build() {
             return new Task(this);
