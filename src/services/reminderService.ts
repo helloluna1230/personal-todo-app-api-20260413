@@ -1,5 +1,6 @@
-import { Task } from '../models/task';
+import { ReminderJob } from '../models/reminderJob';
 import { TaskRepository } from '../repositories/taskRepository';
+import { ReminderJobRepository } from '../repositories/reminderJobRepository';
 import { NotificationPermissionService } from './notificationPermissionService';
 
 export class ReminderError extends Error {
@@ -12,24 +13,32 @@ export class ReminderError extends Error {
   }
 }
 
+/**
+ * Owns the reminder-scheduling concern.
+ *
+ * Single-writer contract: this service writes ONLY to `ReminderJobRepository`
+ * (the `reminder_jobs` projection).  It reads the `tasks` record for
+ * validation but never mutates it.
+ */
 export class ReminderService {
   constructor(
     private readonly taskRepo: TaskRepository,
+    private readonly reminderJobRepo: ReminderJobRepository,
     private readonly permissionService: NotificationPermissionService,
   ) {}
 
   /**
-   * Sets a reminder for a task.
+   * Registers a reminder job for a task.
    *
    * Rules:
    * 1. Notification permission must be granted.
-   * 2. remindAt must be <= dueAt when a dueAt is present on the task.
+   * 2. remindAt must be <= dueAt when dueAt is present on the task.
    *
    * @throws {ReminderError} PERMISSION_REQUIRED – permission not granted
-   * @throws {ReminderError} TASK_NOT_FOUND – task does not exist or is deleted
-   * @throws {ReminderError} REMIND_AFTER_DUE – remindAt is after dueAt
+   * @throws {ReminderError} TASK_NOT_FOUND     – task does not exist or is deleted
+   * @throws {ReminderError} REMIND_AFTER_DUE   – remindAt is after dueAt
    */
-  setReminder(taskId: string, remindAt: Date): Task {
+  setReminder(taskId: string, remindAt: Date): ReminderJob {
     if (!this.permissionService.isGranted()) {
       throw new ReminderError(
         '通知权限未开启，请先授权后再设置提醒。',
@@ -49,27 +58,30 @@ export class ReminderService {
       );
     }
 
-    const updated = this.taskRepo.setReminder(taskId, remindAt);
-    // In a real implementation a local/push notification would be scheduled
-    // here (e.g. via expo-notifications on the mobile client or a job queue).
-    return updated!;
+    // Write only to the reminder_jobs projection – tasks table is untouched.
+    return this.reminderJobRepo.upsert(taskId, remindAt);
   }
 
   /**
-   * Cancels the reminder for a task (e.g. after completion or deletion).
-   * No-ops when the task has no active reminder.
+   * Returns the active reminder job for a task, or undefined when none exists.
+   */
+  getReminderForTask(taskId: string): ReminderJob | undefined {
+    return this.reminderJobRepo.findActiveByTaskId(taskId);
+  }
+
+  /**
+   * Cancels all scheduled reminder jobs for a task.
+   * No-ops when there is no active job.
    *
    * @throws {ReminderError} TASK_NOT_FOUND – task does not exist
    */
-  cancelReminder(taskId: string): Task {
+  cancelReminderForTask(taskId: string): void {
     const task = this.taskRepo.findById(taskId);
     if (!task) {
       throw new ReminderError('任务不存在。', 'TASK_NOT_FOUND');
     }
 
-    const updated = this.taskRepo.clearReminder(taskId);
-    // In a real implementation any scheduled notification would be cancelled
-    // here via the notification system's cancellation API.
-    return updated!;
+    // Cancel within the reminder_jobs projection only.
+    this.reminderJobRepo.cancelByTaskId(taskId);
   }
 }

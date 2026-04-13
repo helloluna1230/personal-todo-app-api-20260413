@@ -1,5 +1,6 @@
 import express from 'express';
 import { TaskRepository } from './repositories/taskRepository';
+import { ReminderJobRepository } from './repositories/reminderJobRepository';
 import { NotificationPermissionRepository } from './repositories/notificationPermissionRepository';
 import { NotificationPermissionService } from './services/notificationPermissionService';
 import { ReminderService } from './services/reminderService';
@@ -13,11 +14,12 @@ export function createApp(): express.Application {
 
   // Repositories
   const taskRepo = new TaskRepository();
+  const reminderJobRepo = new ReminderJobRepository();
   const permissionRepo = new NotificationPermissionRepository();
 
   // Services
   const permissionService = new NotificationPermissionService(permissionRepo);
-  const reminderService = new ReminderService(taskRepo, permissionService);
+  const reminderService = new ReminderService(taskRepo, reminderJobRepo, permissionService);
   const taskService = new TaskService(taskRepo, reminderService);
 
   // Routes

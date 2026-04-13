@@ -1,4 +1,5 @@
 import { TaskRepository } from '../../src/repositories/taskRepository';
+import { ReminderJobRepository } from '../../src/repositories/reminderJobRepository';
 import { NotificationPermissionRepository } from '../../src/repositories/notificationPermissionRepository';
 import { NotificationPermissionService } from '../../src/services/notificationPermissionService';
 import { ReminderService, ReminderError } from '../../src/services/reminderService';
@@ -6,17 +7,18 @@ import { TaskService } from '../../src/services/taskService';
 
 function buildDependencies() {
   const taskRepo = new TaskRepository();
+  const reminderJobRepo = new ReminderJobRepository();
   const permissionRepo = new NotificationPermissionRepository();
   const permissionService = new NotificationPermissionService(permissionRepo);
-  const reminderService = new ReminderService(taskRepo, permissionService);
+  const reminderService = new ReminderService(taskRepo, reminderJobRepo, permissionService);
   const taskService = new TaskService(taskRepo, reminderService);
-  return { taskRepo, permissionRepo, permissionService, reminderService, taskService };
+  return { taskRepo, reminderJobRepo, permissionRepo, permissionService, reminderService, taskService };
 }
 
 describe('ReminderService – unit tests', () => {
   describe('setReminder', () => {
     it('throws PERMISSION_REQUIRED when notification permission is not granted', () => {
-      const { taskRepo, permissionService, reminderService } = buildDependencies();
+      const { taskRepo, reminderService } = buildDependencies();
       // permissionService defaults to 'undetermined'
       const task = taskRepo.create({ title: 'Test task' });
 
@@ -57,99 +59,164 @@ describe('ReminderService – unit tests', () => {
       );
     });
 
-    it('sets the reminder when remindAt equals dueAt', () => {
+    it('returns a ReminderJob (not a Task) when remindAt equals dueAt', () => {
       const { taskRepo, permissionService, reminderService } = buildDependencies();
       permissionService.updatePermission('granted');
       const dueAt = new Date('2026-06-01T12:00:00Z');
       const task = taskRepo.create({ title: 'Task', dueAt });
 
-      const updated = reminderService.setReminder(task.id, dueAt);
-      expect(updated.remindAt).toEqual(dueAt);
+      const job = reminderService.setReminder(task.id, dueAt);
+      expect(job.taskId).toBe(task.id);
+      expect(job.remindAt).toEqual(dueAt);
+      expect(job.status).toBe('scheduled');
     });
 
-    it('sets the reminder when remindAt is before dueAt', () => {
+    it('returns a ReminderJob when remindAt is before dueAt', () => {
       const { taskRepo, permissionService, reminderService } = buildDependencies();
       permissionService.updatePermission('granted');
       const dueAt = new Date('2026-06-01T12:00:00Z');
       const remindAt = new Date('2026-06-01T11:00:00Z');
       const task = taskRepo.create({ title: 'Task', dueAt });
 
-      const updated = reminderService.setReminder(task.id, remindAt);
-      expect(updated.remindAt).toEqual(remindAt);
+      const job = reminderService.setReminder(task.id, remindAt);
+      expect(job.remindAt).toEqual(remindAt);
+      expect(job.status).toBe('scheduled');
     });
 
-    it('sets the reminder when the task has no dueAt', () => {
+    it('returns a ReminderJob when the task has no dueAt', () => {
       const { taskRepo, permissionService, reminderService } = buildDependencies();
       permissionService.updatePermission('granted');
       const task = taskRepo.create({ title: 'No-due-date task' });
       const remindAt = new Date('2026-06-01T09:00:00Z');
 
-      const updated = reminderService.setReminder(task.id, remindAt);
-      expect(updated.remindAt).toEqual(remindAt);
+      const job = reminderService.setReminder(task.id, remindAt);
+      expect(job.remindAt).toEqual(remindAt);
+      expect(job.status).toBe('scheduled');
+    });
+
+    it('does NOT mutate the tasks record (single-writer boundary)', () => {
+      const { taskRepo, permissionService, reminderService } = buildDependencies();
+      permissionService.updatePermission('granted');
+      const task = taskRepo.create({ title: 'Task' });
+      const remindAt = new Date('2026-06-01T09:00:00Z');
+
+      reminderService.setReminder(task.id, remindAt);
+
+      // The task record must remain unchanged – no remindAt field on it.
+      const storedTask = taskRepo.findById(task.id)!;
+      expect(storedTask).not.toHaveProperty('remindAt');
+    });
+
+    it('replaces a previous scheduled job when called again (upsert behaviour)', () => {
+      const { taskRepo, permissionService, reminderService } = buildDependencies();
+      permissionService.updatePermission('granted');
+      const task = taskRepo.create({ title: 'Task' });
+      const first = new Date('2026-06-01T08:00:00Z');
+      const second = new Date('2026-06-01T09:00:00Z');
+
+      reminderService.setReminder(task.id, first);
+      const latest = reminderService.setReminder(task.id, second);
+
+      expect(latest.remindAt).toEqual(second);
+      expect(latest.status).toBe('scheduled');
+      // Previous job should no longer be active.
+      const active = reminderService.getReminderForTask(task.id);
+      expect(active?.remindAt).toEqual(second);
     });
   });
 
-  describe('cancelReminder', () => {
-    it('clears remindAt on the task', () => {
+  describe('cancelReminderForTask', () => {
+    it('cancels the active reminder job without touching the task record', () => {
       const { taskRepo, permissionService, reminderService } = buildDependencies();
       permissionService.updatePermission('granted');
       const task = taskRepo.create({ title: 'Task' });
       reminderService.setReminder(task.id, new Date('2026-06-01T09:00:00Z'));
 
-      const updated = reminderService.cancelReminder(task.id);
-      expect(updated.remindAt).toBeUndefined();
+      reminderService.cancelReminderForTask(task.id);
+
+      expect(reminderService.getReminderForTask(task.id)).toBeUndefined();
+      // The task itself must be unchanged.
+      const storedTask = taskRepo.findById(task.id)!;
+      expect(storedTask).not.toHaveProperty('remindAt');
     });
 
-    it('is a no-op (does not throw) when the task has no reminder', () => {
+    it('is a no-op when the task has no active reminder', () => {
       const { taskRepo, reminderService } = buildDependencies();
       const task = taskRepo.create({ title: 'Task without reminder' });
 
-      expect(() => reminderService.cancelReminder(task.id)).not.toThrow();
+      expect(() => reminderService.cancelReminderForTask(task.id)).not.toThrow();
     });
 
     it('throws TASK_NOT_FOUND when the task does not exist', () => {
       const { reminderService } = buildDependencies();
 
-      expect(() => reminderService.cancelReminder('ghost-id')).toThrow(
+      expect(() => reminderService.cancelReminderForTask('ghost-id')).toThrow(
         expect.objectContaining({ code: 'TASK_NOT_FOUND' }),
       );
     });
   });
+
+  describe('getReminderForTask', () => {
+    it('returns undefined when no reminder has been set', () => {
+      const { taskRepo, reminderService } = buildDependencies();
+      const task = taskRepo.create({ title: 'Task' });
+
+      expect(reminderService.getReminderForTask(task.id)).toBeUndefined();
+    });
+
+    it('returns the active reminder job', () => {
+      const { taskRepo, permissionService, reminderService } = buildDependencies();
+      permissionService.updatePermission('granted');
+      const task = taskRepo.create({ title: 'Task' });
+      const remindAt = new Date('2026-06-01T09:00:00Z');
+      reminderService.setReminder(task.id, remindAt);
+
+      const job = reminderService.getReminderForTask(task.id);
+      expect(job?.remindAt).toEqual(remindAt);
+      expect(job?.status).toBe('scheduled');
+    });
+  });
 });
 
-describe('TaskService – reminder cancellation on state change', () => {
-  it('cancels reminder automatically when task is completed (AC-3)', () => {
-    const { taskRepo, permissionService, taskService } = buildDependencies();
+describe('TaskService – reminder cancellation on state change (AC-3)', () => {
+  it('cancels reminder job automatically when task is completed', () => {
+    const { taskRepo, permissionService, reminderService, taskService } = buildDependencies();
     permissionService.updatePermission('granted');
     const task = taskRepo.create({ title: 'Task to complete' });
-    taskRepo.setReminder(task.id, new Date('2026-06-01T09:00:00Z'));
+    reminderService.setReminder(task.id, new Date('2026-06-01T09:00:00Z'));
 
-    const updated = taskService.updateTask(task.id, { isCompleted: true });
-    expect(updated?.isCompleted).toBe(true);
-    expect(updated?.remindAt).toBeUndefined();
+    taskService.updateTask(task.id, { isCompleted: true });
+
+    // The reminder job must be cancelled in the reminder_jobs projection.
+    expect(reminderService.getReminderForTask(task.id)).toBeUndefined();
+    // The task record must remain intact (single-writer boundary).
+    const storedTask = taskRepo.findById(task.id)!;
+    expect(storedTask.isCompleted).toBe(true);
   });
 
-  it('cancels reminder automatically when task is soft-deleted', () => {
-    const { taskRepo, permissionService, taskService } = buildDependencies();
+  it('cancels reminder job automatically when task is soft-deleted', () => {
+    const { taskRepo, permissionService, reminderService, taskService } = buildDependencies();
     permissionService.updatePermission('granted');
     const task = taskRepo.create({ title: 'Task to delete' });
-    taskRepo.setReminder(task.id, new Date('2026-06-01T09:00:00Z'));
+    reminderService.setReminder(task.id, new Date('2026-06-01T09:00:00Z'));
 
-    const updated = taskService.updateTask(task.id, { isDeleted: true });
-    expect(updated?.isDeleted).toBe(true);
-    expect(updated?.remindAt).toBeUndefined();
+    taskService.updateTask(task.id, { isDeleted: true });
+
+    expect(reminderService.getReminderForTask(task.id)).toBeUndefined();
   });
 
-  it('does not alter remindAt when only title is updated', () => {
-    const { taskRepo, permissionService, taskService } = buildDependencies();
+  it('does not cancel reminder job when only title is updated', () => {
+    const { taskRepo, permissionService, reminderService, taskService } = buildDependencies();
     permissionService.updatePermission('granted');
     const remindAt = new Date('2026-06-01T09:00:00Z');
     const task = taskRepo.create({ title: 'Old title' });
-    taskRepo.setReminder(task.id, remindAt);
+    reminderService.setReminder(task.id, remindAt);
 
-    const updated = taskService.updateTask(task.id, { title: 'New title' });
-    expect(updated?.title).toBe('New title');
-    expect(updated?.remindAt).toEqual(remindAt);
+    taskService.updateTask(task.id, { title: 'New title' });
+
+    const active = reminderService.getReminderForTask(task.id);
+    expect(active?.remindAt).toEqual(remindAt);
+    expect(active?.status).toBe('scheduled');
   });
 });
 

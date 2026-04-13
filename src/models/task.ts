@@ -3,7 +3,6 @@ export interface Task {
   title: string;
   description?: string;
   dueAt?: Date;
-  remindAt?: Date;
   isCompleted: boolean;
   isDeleted: boolean;
   createdAt: Date;
@@ -22,8 +21,4 @@ export interface UpdateTaskDto {
   dueAt?: Date;
   isCompleted?: boolean;
   isDeleted?: boolean;
-}
-
-export interface SetReminderDto {
-  remindAt: Date;
 }

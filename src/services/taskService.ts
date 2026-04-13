@@ -23,8 +23,10 @@ export class TaskService {
 
   /**
    * Updates a task.
-   * When a task is completed or soft-deleted any pending reminder is
-   * automatically cancelled (acceptance criterion AC-3).
+   * When a task is completed or soft-deleted any pending reminder jobs are
+   * automatically cancelled in the reminder_jobs projection (AC-3).
+   * The tasks main record is written only here; ReminderService writes only
+   * to reminder_jobs (single-writer boundary).
    */
   updateTask(id: string, dto: UpdateTaskDto): Task | undefined {
     const task = this.taskRepo.findById(id);
@@ -33,12 +35,11 @@ export class TaskService {
     const updated = this.taskRepo.update(id, dto);
     if (!updated) return undefined;
 
-    // Cancel any pending reminder when the task is completed or deleted.
-    if ((dto.isCompleted || dto.isDeleted) && updated.remindAt) {
-      this.reminderService.cancelReminder(id);
+    // When a task is completed or deleted, cancel pending reminder jobs.
+    if (dto.isCompleted || dto.isDeleted) {
+      this.reminderService.cancelReminderForTask(id);
     }
 
-    // Return the latest snapshot after potential reminder clearance.
     return this.taskRepo.findById(id);
   }
 }

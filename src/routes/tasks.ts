@@ -71,7 +71,24 @@ export function createTaskRouter(
     res.json(updated);
   });
 
-  // POST /tasks/:id/reminder – set a reminder
+  // GET /tasks/:id/reminder – get the active reminder job for a task
+  router.get('/:id/reminder', (req: Request, res: Response) => {
+    const task = taskService.getTask(String(req.params.id));
+    if (!task) {
+      res.status(404).json({ error: 'TASK_NOT_FOUND', message: '任务不存在。' });
+      return;
+    }
+
+    const job = reminderService.getReminderForTask(String(req.params.id));
+    if (!job) {
+      res.status(404).json({ error: 'REMINDER_NOT_FOUND', message: '该任务暂无提醒。' });
+      return;
+    }
+
+    res.json(job);
+  });
+
+  // POST /tasks/:id/reminder – register a reminder job for a task
   router.post('/:id/reminder', (req: Request, res: Response) => {
     const { remindAt } = req.body as { remindAt?: string };
 
@@ -91,8 +108,8 @@ export function createTaskRouter(
     }
 
     try {
-      const task = reminderService.setReminder(String(req.params.id), remindAtDate);
-      res.status(200).json(task);
+      const job = reminderService.setReminder(String(req.params.id), remindAtDate);
+      res.status(200).json(job);
     } catch (err) {
       if (err instanceof ReminderError) {
         const status =
@@ -108,11 +125,11 @@ export function createTaskRouter(
     }
   });
 
-  // DELETE /tasks/:id/reminder – cancel a reminder
+  // DELETE /tasks/:id/reminder – cancel the active reminder job for a task
   router.delete('/:id/reminder', (req: Request, res: Response) => {
     try {
-      const task = reminderService.cancelReminder(String(req.params.id));
-      res.status(200).json(task);
+      reminderService.cancelReminderForTask(String(req.params.id));
+      res.status(204).send();
     } catch (err) {
       if (err instanceof ReminderError) {
         res.status(404).json({ error: err.code, message: err.message });

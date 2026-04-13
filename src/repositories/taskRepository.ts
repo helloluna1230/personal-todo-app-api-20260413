@@ -4,6 +4,8 @@ import { Task, CreateTaskDto, UpdateTaskDto } from '../models/task';
 /**
  * Simple in-memory store for tasks.
  * Replace with a database adapter in production.
+ * This repository is the sole writer of the `tasks` main record and knows
+ * nothing about reminder scheduling.
  */
 export class TaskRepository {
   private tasks: Map<string, Task> = new Map();
@@ -41,24 +43,6 @@ export class TaskRepository {
       ...dto,
       updatedAt: new Date(),
     };
-    this.tasks.set(id, updated);
-    return updated;
-  }
-
-  setReminder(id: string, remindAt: Date): Task | undefined {
-    const task = this.tasks.get(id);
-    if (!task) return undefined;
-
-    const updated: Task = { ...task, remindAt, updatedAt: new Date() };
-    this.tasks.set(id, updated);
-    return updated;
-  }
-
-  clearReminder(id: string): Task | undefined {
-    const task = this.tasks.get(id);
-    if (!task) return undefined;
-
-    const updated: Task = { ...task, remindAt: undefined, updatedAt: new Date() };
     this.tasks.set(id, updated);
     return updated;
   }
