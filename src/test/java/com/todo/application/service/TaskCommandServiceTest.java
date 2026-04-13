@@ -14,8 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -54,13 +53,16 @@ class TaskCommandServiceTest {
     @Test
     void createTask_withAllFields_shouldPersistCorrectly() {
         stubSave();
+        Instant dueAt = Instant.parse("2026-05-01T00:00:00Z");
+        Instant reminderAt = Instant.parse("2026-05-01T09:00:00Z");
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle("完成报告");
         request.setNotes("需要附上图表");
         request.setCategory(Category.LIFE);
         request.setPriority(Priority.HIGH);
-        request.setDueDate(LocalDate.of(2026, 5, 1));
-        request.setReminderTime(LocalTime.of(9, 0));
+        request.setDueAt(dueAt);
+        request.setReminderAt(reminderAt);
+        request.setTimezone("Asia/Shanghai");
 
         Task task = taskCommandService.createTask(request);
 
@@ -68,8 +70,9 @@ class TaskCommandServiceTest {
         assertThat(task.getNotes()).isEqualTo("需要附上图表");
         assertThat(task.getCategory()).isEqualTo(Category.LIFE);
         assertThat(task.getPriority()).isEqualTo(Priority.HIGH);
-        assertThat(task.getDueDate()).isEqualTo(LocalDate.of(2026, 5, 1));
-        assertThat(task.getReminderTime()).isEqualTo(LocalTime.of(9, 0));
+        assertThat(task.getDueAt()).isEqualTo(dueAt);
+        assertThat(task.getReminderAt()).isEqualTo(reminderAt);
+        assertThat(task.getTimezone()).isEqualTo("Asia/Shanghai");
         assertThat(task.getStatus()).isEqualTo(TaskStatus.TODO);
     }
 

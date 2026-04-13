@@ -4,8 +4,7 @@ import com.todo.domain.model.Category;
 import com.todo.domain.model.Priority;
 import jakarta.validation.constraints.NotBlank;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.Instant;
 
 public class CreateTaskRequest {
 
@@ -18,9 +17,11 @@ public class CreateTaskRequest {
 
     private Priority priority;
 
-    private LocalDate dueDate;
+    private Instant dueAt;
 
-    private LocalTime reminderTime;
+    private Instant reminderAt;
+
+    private String timezone;
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
@@ -34,9 +35,12 @@ public class CreateTaskRequest {
     public Priority getPriority() { return priority; }
     public void setPriority(Priority priority) { this.priority = priority; }
 
-    public LocalDate getDueDate() { return dueDate; }
-    public void setDueDate(LocalDate dueDate) { this.dueDate = dueDate; }
+    public Instant getDueAt() { return dueAt; }
+    public void setDueAt(Instant dueAt) { this.dueAt = dueAt; }
 
-    public LocalTime getReminderTime() { return reminderTime; }
-    public void setReminderTime(LocalTime reminderTime) { this.reminderTime = reminderTime; }
+    public Instant getReminderAt() { return reminderAt; }
+    public void setReminderAt(Instant reminderAt) { this.reminderAt = reminderAt; }
+
+    public String getTimezone() { return timezone; }
+    public void setTimezone(String timezone) { this.timezone = timezone; }
 }

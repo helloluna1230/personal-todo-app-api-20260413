@@ -7,9 +7,8 @@ import com.todo.domain.model.Task;
 import com.todo.domain.model.TaskStatus;
 import com.todo.domain.model.TimeStatus;
 
-import java.time.LocalDate;
+import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 
 public class TaskResponse {
 
@@ -19,8 +18,9 @@ public class TaskResponse {
     private Category category;
     private Priority priority;
     private TaskStatus status;
-    private LocalDate dueDate;
-    private LocalTime reminderTime;
+    private Instant dueAt;
+    private Instant reminderAt;
+    private String timezone;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private TimeStatus timeStatus;
@@ -33,8 +33,9 @@ public class TaskResponse {
         response.category = task.getCategory();
         response.priority = task.getPriority();
         response.status = task.getStatus();
-        response.dueDate = task.getDueDate();
-        response.reminderTime = task.getReminderTime();
+        response.dueAt = task.getDueAt();
+        response.reminderAt = task.getReminderAt();
+        response.timezone = task.getTimezone();
         response.createdAt = task.getCreatedAt();
         response.updatedAt = task.getUpdatedAt();
         response.timeStatus = timeStatusService.computeTimeStatus(task);
@@ -47,8 +48,9 @@ public class TaskResponse {
     public Category getCategory() { return category; }
     public Priority getPriority() { return priority; }
     public TaskStatus getStatus() { return status; }
-    public LocalDate getDueDate() { return dueDate; }
-    public LocalTime getReminderTime() { return reminderTime; }
+    public Instant getDueAt() { return dueAt; }
+    public Instant getReminderAt() { return reminderAt; }
+    public String getTimezone() { return timezone; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public TimeStatus getTimeStatus() { return timeStatus; }

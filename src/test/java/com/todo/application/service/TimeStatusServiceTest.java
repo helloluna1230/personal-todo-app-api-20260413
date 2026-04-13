@@ -5,7 +5,9 @@ import com.todo.domain.model.TaskStatus;
 import com.todo.domain.model.TimeStatus;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,9 +17,11 @@ class TimeStatusServiceTest {
 
     @Test
     void computeTimeStatus_doneTask_shouldReturnDone() {
+        Instant yesterday = LocalDate.now(ZoneOffset.UTC).minusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
         Task task = Task.builder().title("已完成")
                 .status(TaskStatus.DONE)
-                .dueDate(LocalDate.now().minusDays(1))
+                .dueAt(yesterday)
+                .timezone("UTC")
                 .build();
 
         assertThat(timeStatusService.computeTimeStatus(task)).isEqualTo(TimeStatus.DONE);
@@ -41,8 +45,10 @@ class TimeStatusServiceTest {
 
     @Test
     void computeTimeStatus_dueDateBeforeToday_shouldReturnOverdue() {
+        Instant yesterday = LocalDate.now(ZoneOffset.UTC).minusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
         Task task = Task.builder().title("逾期")
-                .dueDate(LocalDate.now().minusDays(1))
+                .dueAt(yesterday)
+                .timezone("UTC")
                 .build();
 
         assertThat(timeStatusService.computeTimeStatus(task)).isEqualTo(TimeStatus.OVERDUE);
@@ -50,8 +56,10 @@ class TimeStatusServiceTest {
 
     @Test
     void computeTimeStatus_dueDateToday_shouldReturnToday() {
+        Instant today = LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant();
         Task task = Task.builder().title("今日到期")
-                .dueDate(LocalDate.now())
+                .dueAt(today)
+                .timezone("UTC")
                 .build();
 
         assertThat(timeStatusService.computeTimeStatus(task)).isEqualTo(TimeStatus.TODAY);
@@ -59,8 +67,10 @@ class TimeStatusServiceTest {
 
     @Test
     void computeTimeStatus_dueDateAfterToday_shouldReturnUpcoming() {
+        Instant tomorrow = LocalDate.now(ZoneOffset.UTC).plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
         Task task = Task.builder().title("未来任务")
-                .dueDate(LocalDate.now().plusDays(1))
+                .dueAt(tomorrow)
+                .timezone("UTC")
                 .build();
 
         assertThat(timeStatusService.computeTimeStatus(task)).isEqualTo(TimeStatus.UPCOMING);

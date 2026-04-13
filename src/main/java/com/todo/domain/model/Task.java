@@ -1,9 +1,8 @@
 package com.todo.domain.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDate;
+import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.UUID;
 
 @Entity
@@ -31,9 +30,11 @@ public class Task {
     @Column(nullable = false)
     private TaskStatus status;
 
-    private LocalDate dueDate;
+    private Instant dueAt;
 
-    private LocalTime reminderTime;
+    private Instant reminderAt;
+
+    private String timezone;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -50,8 +51,9 @@ public class Task {
         this.category = builder.category;
         this.priority = builder.priority;
         this.status = builder.status;
-        this.dueDate = builder.dueDate;
-        this.reminderTime = builder.reminderTime;
+        this.dueAt = builder.dueAt;
+        this.reminderAt = builder.reminderAt;
+        this.timezone = builder.timezone;
         this.createdAt = builder.createdAt;
         this.updatedAt = builder.updatedAt;
     }
@@ -66,8 +68,9 @@ public class Task {
     public Category getCategory() { return category; }
     public Priority getPriority() { return priority; }
     public TaskStatus getStatus() { return status; }
-    public LocalDate getDueDate() { return dueDate; }
-    public LocalTime getReminderTime() { return reminderTime; }
+    public Instant getDueAt() { return dueAt; }
+    public Instant getReminderAt() { return reminderAt; }
+    public String getTimezone() { return timezone; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 
@@ -78,8 +81,9 @@ public class Task {
         private Category category = Category.WORK;
         private Priority priority = Priority.MEDIUM;
         private TaskStatus status = TaskStatus.TODO;
-        private LocalDate dueDate;
-        private LocalTime reminderTime;
+        private Instant dueAt;
+        private Instant reminderAt;
+        private String timezone;
         private LocalDateTime createdAt = LocalDateTime.now();
         private LocalDateTime updatedAt = LocalDateTime.now();
 
@@ -88,8 +92,9 @@ public class Task {
         public Builder category(Category category) { this.category = category; return this; }
         public Builder priority(Priority priority) { this.priority = priority; return this; }
         public Builder status(TaskStatus status) { this.status = status; return this; }
-        public Builder dueDate(LocalDate dueDate) { this.dueDate = dueDate; return this; }
-        public Builder reminderTime(LocalTime reminderTime) { this.reminderTime = reminderTime; return this; }
+        public Builder dueAt(Instant dueAt) { this.dueAt = dueAt; return this; }
+        public Builder reminderAt(Instant reminderAt) { this.reminderAt = reminderAt; return this; }
+        public Builder timezone(String timezone) { this.timezone = timezone; return this; }
 
         public Task build() {
             return new Task(this);

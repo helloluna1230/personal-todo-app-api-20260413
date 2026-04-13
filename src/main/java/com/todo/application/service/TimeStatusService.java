@@ -6,6 +6,7 @@ import com.todo.domain.model.TimeStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 @Service
 public class TimeStatusService {
@@ -14,14 +15,15 @@ public class TimeStatusService {
         if (task.getStatus() == TaskStatus.DONE) {
             return TimeStatus.DONE;
         }
-        if (task.getDueDate() == null) {
+        if (task.getDueAt() == null) {
             return TimeStatus.NO_DUE_DATE;
         }
-        LocalDate today = LocalDate.now();
-        LocalDate due = task.getDueDate();
-        if (due.isBefore(today)) {
+        ZoneId zoneId = task.getTimezone() != null ? ZoneId.of(task.getTimezone()) : ZoneId.systemDefault();
+        LocalDate today = LocalDate.now(zoneId);
+        LocalDate dueDay = task.getDueAt().atZone(zoneId).toLocalDate();
+        if (dueDay.isBefore(today)) {
             return TimeStatus.OVERDUE;
-        } else if (due.isEqual(today)) {
+        } else if (dueDay.isEqual(today)) {
             return TimeStatus.TODAY;
         } else {
             return TimeStatus.UPCOMING;

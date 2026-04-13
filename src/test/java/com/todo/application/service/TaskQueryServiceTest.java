@@ -11,7 +11,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -77,11 +79,11 @@ class TaskQueryServiceTest {
     @Test
     void getToday_shouldIncludeTasksWithTodayOrOverdueStatus() {
         Task overdueTask = Task.builder().title("逾期任务")
-                .dueDate(LocalDate.now().minusDays(1)).build();
+                .dueAt(LocalDate.now(ZoneOffset.UTC).minusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant()).build();
         Task todayTask = Task.builder().title("今日任务")
-                .dueDate(LocalDate.now()).build();
+                .dueAt(LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant()).build();
         Task upcomingTask = Task.builder().title("未来任务")
-                .dueDate(LocalDate.now().plusDays(1)).build();
+                .dueAt(LocalDate.now(ZoneOffset.UTC).plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant()).build();
         when(taskRepository.findByStatusNot(TaskStatus.DONE))
                 .thenReturn(Arrays.asList(overdueTask, todayTask, upcomingTask));
         when(timeStatusService.computeTimeStatus(overdueTask)).thenReturn(TimeStatus.OVERDUE);
@@ -98,7 +100,7 @@ class TaskQueryServiceTest {
     void getToday_shouldExcludeUpcomingAndNoDueDateTasks() {
         Task noDueTask = Task.builder().title("无截止日").build();
         Task upcomingTask = Task.builder().title("未来任务")
-                .dueDate(LocalDate.now().plusDays(5)).build();
+                .dueAt(LocalDate.now(ZoneOffset.UTC).plusDays(5).atStartOfDay(ZoneOffset.UTC).toInstant()).build();
         when(taskRepository.findByStatusNot(TaskStatus.DONE))
                 .thenReturn(Arrays.asList(noDueTask, upcomingTask));
         when(timeStatusService.computeTimeStatus(noDueTask)).thenReturn(TimeStatus.NO_DUE_DATE);

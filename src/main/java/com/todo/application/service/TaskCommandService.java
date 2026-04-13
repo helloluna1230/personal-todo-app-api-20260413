@@ -32,8 +32,9 @@ public class TaskCommandService {
                 .notes(request.getNotes())
                 .category(category)
                 .priority(priority)
-                .dueDate(request.getDueDate())
-                .reminderTime(request.getReminderTime())
+                .dueAt(request.getDueAt())
+                .reminderAt(request.getReminderAt())
+                .timezone(request.getTimezone())
                 .build();
 
         return taskRepository.save(task);

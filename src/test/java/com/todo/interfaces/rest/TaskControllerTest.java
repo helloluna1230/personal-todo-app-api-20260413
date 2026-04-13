@@ -17,8 +17,9 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -78,8 +79,9 @@ class TaskControllerTest {
                 .notes("需要附上图表")
                 .category(Category.LIFE)
                 .priority(Priority.HIGH)
-                .dueDate(LocalDate.of(2026, 5, 1))
-                .reminderTime(LocalTime.of(9, 0))
+                .dueAt(Instant.parse("2026-05-01T00:00:00Z"))
+                .reminderAt(Instant.parse("2026-05-01T09:00:00Z"))
+                .timezone("Asia/Shanghai")
                 .build();
 
         when(taskCommandService.createTask(any(CreateTaskRequest.class))).thenReturn(mockTask);
@@ -90,8 +92,9 @@ class TaskControllerTest {
         request.setNotes("需要附上图表");
         request.setCategory(Category.LIFE);
         request.setPriority(Priority.HIGH);
-        request.setDueDate(LocalDate.of(2026, 5, 1));
-        request.setReminderTime(LocalTime.of(9, 0));
+        request.setDueAt(Instant.parse("2026-05-01T00:00:00Z"));
+        request.setReminderAt(Instant.parse("2026-05-01T09:00:00Z"));
+        request.setTimezone("Asia/Shanghai");
 
         mockMvc.perform(post("/api/tasks")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -183,9 +186,9 @@ class TaskControllerTest {
     @Test
     void listTasks_viewToday_shouldReturnIncompleteTasksDueTodayOrOverdue() throws Exception {
         Task overdueTask = Task.builder().title("逾期任务")
-                .dueDate(LocalDate.now().minusDays(1)).build();
+                .dueAt(LocalDate.now(ZoneOffset.UTC).minusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant()).build();
         Task todayTask = Task.builder().title("今日任务")
-                .dueDate(LocalDate.now()).build();
+                .dueAt(LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant()).build();
         when(taskQueryService.getToday()).thenReturn(Arrays.asList(overdueTask, todayTask));
         when(timeStatusService.computeTimeStatus(overdueTask)).thenReturn(TimeStatus.OVERDUE);
         when(timeStatusService.computeTimeStatus(todayTask)).thenReturn(TimeStatus.TODAY);
@@ -216,7 +219,7 @@ class TaskControllerTest {
     void listTasks_response_doneTask_shouldHaveDoneTimeStatus() throws Exception {
         Task doneTask = Task.builder().title("已完成任务")
                 .status(TaskStatus.DONE)
-                .dueDate(LocalDate.now().minusDays(1)).build();
+                .dueAt(LocalDate.now(ZoneOffset.UTC).minusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant()).build();
         when(taskQueryService.getAll()).thenReturn(Collections.singletonList(doneTask));
         when(timeStatusService.computeTimeStatus(doneTask)).thenReturn(TimeStatus.DONE);
 
@@ -239,7 +242,7 @@ class TaskControllerTest {
     @Test
     void listTasks_response_futureTask_shouldHaveUpcomingTimeStatus() throws Exception {
         Task futureTask = Task.builder().title("未来任务")
-                .dueDate(LocalDate.now().plusDays(3)).build();
+                .dueAt(LocalDate.now(ZoneOffset.UTC).plusDays(3).atStartOfDay(ZoneOffset.UTC).toInstant()).build();
         when(taskQueryService.getAll()).thenReturn(Collections.singletonList(futureTask));
         when(timeStatusService.computeTimeStatus(futureTask)).thenReturn(TimeStatus.UPCOMING);
 
