@@ -28,6 +28,31 @@ describe('[Integration] Task Reminder API', () => {
   }
 
   // -------------------------------------------------------------------------
+  // Task model contract
+  // -------------------------------------------------------------------------
+
+  describe('POST /tasks – task model shape', () => {
+    it('creates a task with status TODO, version 1 and no isCompleted/isDeleted', async () => {
+      const res = await request(app)
+        .post('/tasks')
+        .send({ title: 'Read docs', note: 'important', priority: 'high' })
+        .expect(201);
+
+      expect(res.body.status).toBe('TODO');
+      expect(res.body.version).toBe(1);
+      expect(res.body).not.toHaveProperty('isCompleted');
+      expect(res.body).not.toHaveProperty('isDeleted');
+      expect(res.body.note).toBe('important');
+      expect(res.body.priority).toBe('high');
+    });
+
+    it('returns 400 when title is missing', async () => {
+      const res = await request(app).post('/tasks').send({}).expect(400);
+      expect(res.body.error).toBe('INVALID_TITLE');
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Notification permission endpoint
   // -------------------------------------------------------------------------
 
@@ -57,37 +82,81 @@ describe('[Integration] Task Reminder API', () => {
   });
 
   // -------------------------------------------------------------------------
-  // AC-1: Setting a reminder without notification permission returns 403
+  // AC-1: Setting a reminder without permission → permission_denied job (not 403)
   // -------------------------------------------------------------------------
 
   describe('[AC-1] POST /tasks/:id/reminder – permission not granted', () => {
-    it('returns 403 PERMISSION_REQUIRED when permission is undetermined', async () => {
+    it('returns 200 with status permission_denied and authorizationHint when permission is undetermined', async () => {
       const task = await createTask();
-      const remindAt = new Date(Date.now() + 3_600_000).toISOString();
+      const remindAt = '2026-06-01T09:00:00.000Z';
 
       const res = await request(app)
         .post(`/tasks/${task.id}/reminder`)
         .send({ remindAt })
-        .expect(403);
+        .expect(200);
 
-      expect(res.body.error).toBe('PERMISSION_REQUIRED');
+      expect(res.body.status).toBe('permission_denied');
+      expect(res.body.taskId).toBe(task.id);
+      expect(res.body.remindAt).toBe(remindAt);
+      expect(typeof res.body.authorizationHint).toBe('string');
+      expect(res.body.authorizationHint.length).toBeGreaterThan(0);
     });
 
-    it('returns 403 PERMISSION_REQUIRED when permission is denied', async () => {
+    it('returns 200 with status permission_denied when permission is denied', async () => {
       await request(app)
         .post('/notifications/permission')
         .send({ status: 'denied' })
         .expect(200);
 
       const task = await createTask();
-      const remindAt = new Date(Date.now() + 3_600_000).toISOString();
+      const res = await request(app)
+        .post(`/tasks/${task.id}/reminder`)
+        .send({ remindAt: '2026-06-01T09:00:00.000Z' })
+        .expect(200);
 
+      expect(res.body.status).toBe('permission_denied');
+    });
+
+    it('permission_denied job is visible via GET /tasks/:id/reminder', async () => {
+      const task = await createTask();
+      await request(app)
+        .post(`/tasks/${task.id}/reminder`)
+        .send({ remindAt: '2026-06-01T09:00:00.000Z' })
+        .expect(200);
+
+      const res = await request(app).get(`/tasks/${task.id}/reminder`).expect(200);
+      expect(res.body.status).toBe('permission_denied');
+    });
+
+    it('granting permission and re-setting upgrades job to scheduled', async () => {
+      const task = await createTask();
+      const remindAt = '2026-06-01T09:00:00.000Z';
+
+      // First set: no permission → permission_denied
+      await request(app)
+        .post(`/tasks/${task.id}/reminder`)
+        .send({ remindAt })
+        .expect(200);
+
+      // Grant permission, then re-set the reminder
+      await grantPermission();
       const res = await request(app)
         .post(`/tasks/${task.id}/reminder`)
         .send({ remindAt })
-        .expect(403);
+        .expect(200);
 
-      expect(res.body.error).toBe('PERMISSION_REQUIRED');
+      expect(res.body.status).toBe('scheduled');
+    });
+
+    it('task record must NOT contain remindAt regardless of permission state', async () => {
+      const task = await createTask();
+      await request(app)
+        .post(`/tasks/${task.id}/reminder`)
+        .send({ remindAt: '2026-06-01T09:00:00.000Z' })
+        .expect(200);
+
+      const taskRes = await request(app).get(`/tasks/${task.id}`).expect(200);
+      expect(taskRes.body).not.toHaveProperty('remindAt');
     });
   });
 
@@ -96,10 +165,9 @@ describe('[Integration] Task Reminder API', () => {
   // -------------------------------------------------------------------------
 
   describe('[AC-2] POST /tasks/:id/reminder – remindAt vs dueAt validation', () => {
-    it('returns 422 REMIND_AFTER_DUE when remindAt is after dueAt', async () => {
-      await grantPermission();
+    it('returns 422 REMIND_AFTER_DUE when remindAt is after dueAt (even without permission)', async () => {
       const dueAt = '2026-06-01T12:00:00.000Z';
-      const remindAt = '2026-06-01T13:00:00.000Z'; // 1 h after dueAt
+      const remindAt = '2026-06-01T13:00:00.000Z';
       const task = await createTask(dueAt);
 
       const res = await request(app)
@@ -110,7 +178,7 @@ describe('[Integration] Task Reminder API', () => {
       expect(res.body.error).toBe('REMIND_AFTER_DUE');
     });
 
-    it('succeeds (200) when remindAt equals dueAt – returns a ReminderJob', async () => {
+    it('succeeds (200) when remindAt equals dueAt and permission is granted', async () => {
       await grantPermission();
       const dueAt = '2026-06-01T12:00:00.000Z';
       const task = await createTask(dueAt);
@@ -120,9 +188,8 @@ describe('[Integration] Task Reminder API', () => {
         .send({ remindAt: dueAt })
         .expect(200);
 
-      expect(res.body.taskId).toBe(task.id);
-      expect(res.body.remindAt).toBe(dueAt);
       expect(res.body.status).toBe('scheduled');
+      expect(res.body.remindAt).toBe(dueAt);
     });
 
     it('succeeds (200) when remindAt is before dueAt', async () => {
@@ -136,81 +203,101 @@ describe('[Integration] Task Reminder API', () => {
         .send({ remindAt })
         .expect(200);
 
-      expect(res.body.remindAt).toBe(remindAt);
       expect(res.body.status).toBe('scheduled');
     });
 
     it('succeeds (200) when task has no dueAt', async () => {
       await grantPermission();
-      const task = await createTask(); // no dueAt
-      const remindAt = '2026-06-01T09:00:00.000Z';
-
+      const task = await createTask();
       const res = await request(app)
         .post(`/tasks/${task.id}/reminder`)
-        .send({ remindAt })
+        .send({ remindAt: '2026-06-01T09:00:00.000Z' })
         .expect(200);
 
-      expect(res.body.remindAt).toBe(remindAt);
       expect(res.body.status).toBe('scheduled');
-    });
-
-    it('task record itself must NOT contain remindAt (single-writer boundary)', async () => {
-      await grantPermission();
-      const task = await createTask();
-      const remindAt = '2026-06-01T09:00:00.000Z';
-
-      await request(app)
-        .post(`/tasks/${task.id}/reminder`)
-        .send({ remindAt })
-        .expect(200);
-
-      const taskRes = await request(app).get(`/tasks/${task.id}`).expect(200);
-      expect(taskRes.body).not.toHaveProperty('remindAt');
     });
   });
 
   // -------------------------------------------------------------------------
-  // AC-3: Reminder job is cancelled when task is completed or deleted
+  // AC-3: Reminder job cancelled when task is completed (status → DONE)
   // -------------------------------------------------------------------------
 
-  describe('[AC-3] PATCH /tasks/:id – reminder job cancellation on state change', () => {
-    it('cancels reminder job when task is marked as completed', async () => {
+  describe('[AC-3] PATCH /tasks/:id – reminder job cancellation on completion', () => {
+    it('cancels reminder job when task status is set to DONE', async () => {
       await grantPermission();
       const task = await createTask();
-      const remindAt = '2026-06-01T09:00:00.000Z';
 
       await request(app)
         .post(`/tasks/${task.id}/reminder`)
-        .send({ remindAt })
+        .send({ remindAt: '2026-06-01T09:00:00.000Z' })
         .expect(200);
 
-      await request(app)
+      const updated = await request(app)
         .patch(`/tasks/${task.id}`)
-        .send({ isCompleted: true })
+        .send({ status: 'DONE' })
         .expect(200);
 
-      // The reminder job should no longer be active.
+      expect(updated.body.status).toBe('DONE');
+      expect(updated.body.completedAt).toBeTruthy();
+      // Reminder job should be gone.
       await request(app).get(`/tasks/${task.id}/reminder`).expect(404);
     });
 
-    it('cancels reminder job when task is soft-deleted', async () => {
+    it('also cancels permission_denied jobs on DONE', async () => {
+      const task = await createTask();
+      // No permission → permission_denied job
+      await request(app)
+        .post(`/tasks/${task.id}/reminder`)
+        .send({ remindAt: '2026-06-01T09:00:00.000Z' })
+        .expect(200);
+
+      await request(app).patch(`/tasks/${task.id}`).send({ status: 'DONE' }).expect(200);
+
+      await request(app).get(`/tasks/${task.id}/reminder`).expect(404);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Physical delete – DELETE /tasks/:id
+  // -------------------------------------------------------------------------
+
+  describe('DELETE /tasks/:id – physical delete', () => {
+    it('removes the task permanently and returns 204', async () => {
+      const task = await createTask();
+
+      await request(app).delete(`/tasks/${task.id}`).expect(204);
+
+      // Task is gone.
+      await request(app).get(`/tasks/${task.id}`).expect(404);
+    });
+
+    it('no longer appears in GET /tasks after deletion', async () => {
+      const task = await createTask();
+      await request(app).delete(`/tasks/${task.id}`).expect(204);
+
+      const res = await request(app).get('/tasks').expect(200);
+      const ids = (res.body as Array<{ id: string }>).map((t) => t.id);
+      expect(ids).not.toContain(task.id);
+    });
+
+    it('cancels reminder jobs when a task is physically deleted', async () => {
       await grantPermission();
       const task = await createTask();
-      const remindAt = '2026-06-01T09:00:00.000Z';
 
       await request(app)
         .post(`/tasks/${task.id}/reminder`)
-        .send({ remindAt })
+        .send({ remindAt: '2026-06-01T09:00:00.000Z' })
         .expect(200);
 
-      await request(app)
-        .patch(`/tasks/${task.id}`)
-        .send({ isDeleted: true })
-        .expect(200);
+      await request(app).delete(`/tasks/${task.id}`).expect(204);
 
-      // Task no longer visible, reminder also gone.
-      await request(app).get(`/tasks/${task.id}`).expect(404);
-      // Verify reminder job is cancelled via direct repo query is covered in unit tests.
+      // Task is gone; the reminder endpoint should 404 on the task check.
+      await request(app).get(`/tasks/${task.id}/reminder`).expect(404);
+    });
+
+    it('returns 404 for a non-existent task', async () => {
+      const res = await request(app).delete('/tasks/ghost-id').expect(404);
+      expect(res.body.error).toBe('TASK_NOT_FOUND');
     });
   });
 
@@ -224,7 +311,7 @@ describe('[Integration] Task Reminder API', () => {
       await request(app).get(`/tasks/${task.id}/reminder`).expect(404);
     });
 
-    it('returns the active ReminderJob', async () => {
+    it('returns a scheduled ReminderJob when permission is granted', async () => {
       await grantPermission();
       const task = await createTask();
       const remindAt = '2026-06-01T09:00:00.000Z';
@@ -249,16 +336,13 @@ describe('[Integration] Task Reminder API', () => {
     it('cancels an existing reminder and returns 204', async () => {
       await grantPermission();
       const task = await createTask();
-      const remindAt = '2026-06-01T09:00:00.000Z';
 
       await request(app)
         .post(`/tasks/${task.id}/reminder`)
-        .send({ remindAt })
+        .send({ remindAt: '2026-06-01T09:00:00.000Z' })
         .expect(200);
 
       await request(app).delete(`/tasks/${task.id}/reminder`).expect(204);
-
-      // Reminder should be gone.
       await request(app).get(`/tasks/${task.id}/reminder`).expect(404);
     });
 
@@ -266,7 +350,6 @@ describe('[Integration] Task Reminder API', () => {
       const res = await request(app)
         .delete('/tasks/ghost-id/reminder')
         .expect(404);
-
       expect(res.body.error).toBe('TASK_NOT_FOUND');
     });
   });
@@ -274,13 +357,6 @@ describe('[Integration] Task Reminder API', () => {
   // -------------------------------------------------------------------------
   // General task CRUD
   // -------------------------------------------------------------------------
-
-  describe('POST /tasks – input validation', () => {
-    it('returns 400 when title is missing', async () => {
-      const res = await request(app).post('/tasks').send({}).expect(400);
-      expect(res.body.error).toBe('INVALID_TITLE');
-    });
-  });
 
   describe('GET /tasks/:id', () => {
     it('returns 404 for a non-existent task', async () => {

@@ -30,25 +30,20 @@ export class ReminderService {
   /**
    * Registers a reminder job for a task.
    *
-   * Rules:
-   * 1. Notification permission must be granted.
-   * 2. remindAt must be <= dueAt when dueAt is present on the task.
+   * - If the task does not exist → throws `TASK_NOT_FOUND`.
+   * - If `remindAt` is after `dueAt` → throws `REMIND_AFTER_DUE`.
+   * - If OS notification permission is not granted → creates a
+   *   `permission_denied` job so the client can surface "pending
+   *   authorization" UI rather than treating this as a hard error.
+   * - Otherwise → creates a `scheduled` job.
    *
-   * @throws {ReminderError} PERMISSION_REQUIRED – permission not granted
-   * @throws {ReminderError} TASK_NOT_FOUND     – task does not exist or is deleted
-   * @throws {ReminderError} REMIND_AFTER_DUE   – remindAt is after dueAt
+   * @throws {ReminderError} TASK_NOT_FOUND  – task does not exist
+   * @throws {ReminderError} REMIND_AFTER_DUE – remindAt is after dueAt
    */
   setReminder(taskId: string, remindAt: Date): ReminderJob {
-    if (!this.permissionService.isGranted()) {
-      throw new ReminderError(
-        '通知权限未开启，请先授权后再设置提醒。',
-        'PERMISSION_REQUIRED',
-      );
-    }
-
     const task = this.taskRepo.findById(taskId);
-    if (!task || task.isDeleted) {
-      throw new ReminderError('任务不存在或已删除。', 'TASK_NOT_FOUND');
+    if (!task) {
+      throw new ReminderError('任务不存在。', 'TASK_NOT_FOUND');
     }
 
     if (task.dueAt && remindAt > task.dueAt) {
@@ -58,20 +53,29 @@ export class ReminderService {
       );
     }
 
-    // Write only to the reminder_jobs projection – tasks table is untouched.
-    return this.reminderJobRepo.upsert(taskId, remindAt);
+    // When permission is not granted, record the reminder intent as
+    // 'permission_denied' rather than rejecting the request outright.
+    // The client should display an authorization prompt and, once
+    // permission is granted, call this endpoint again to upgrade to
+    // 'scheduled'.
+    const initialStatus = this.permissionService.isGranted()
+      ? 'scheduled'
+      : 'permission_denied';
+
+    return this.reminderJobRepo.upsert(taskId, remindAt, initialStatus);
   }
 
   /**
-   * Returns the active reminder job for a task, or undefined when none exists.
+   * Returns the active reminder job (scheduled or permission_denied) for a
+   * task, or undefined when none exists.
    */
   getReminderForTask(taskId: string): ReminderJob | undefined {
     return this.reminderJobRepo.findActiveByTaskId(taskId);
   }
 
   /**
-   * Cancels all scheduled reminder jobs for a task.
-   * No-ops when there is no active job.
+   * Cancels all scheduled / permission_denied reminder jobs for a task.
+   * No-ops when there are no active jobs.
    *
    * @throws {ReminderError} TASK_NOT_FOUND – task does not exist
    */

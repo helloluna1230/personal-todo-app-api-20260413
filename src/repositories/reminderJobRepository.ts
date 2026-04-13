@@ -9,8 +9,16 @@ import { ReminderJob, ReminderJobStatus } from '../models/reminderJob';
 export class ReminderJobRepository {
   private jobs: Map<string, ReminderJob> = new Map();
 
-  /** Create or replace the active reminder job for a task. */
-  upsert(taskId: string, remindAt: Date): ReminderJob {
+  /**
+   * Create or replace the active reminder job for a task.
+   * @param initialStatus Defaults to 'scheduled'; pass 'permission_denied' when
+   *   the OS notification permission has not been granted yet.
+   */
+  upsert(
+    taskId: string,
+    remindAt: Date,
+    initialStatus: ReminderJobStatus = 'scheduled',
+  ): ReminderJob {
     // Cancel any existing active job for this task first.
     const existing = this.findActiveByTaskId(taskId);
     if (existing) {
@@ -22,7 +30,7 @@ export class ReminderJobRepository {
       id: randomUUID(),
       taskId,
       remindAt,
-      status: 'scheduled',
+      status: initialStatus,
       createdAt: now,
       updatedAt: now,
     };
@@ -30,17 +38,24 @@ export class ReminderJobRepository {
     return job;
   }
 
-  /** Returns the most recent active (scheduled) job for a task, if any. */
+  /**
+   * Returns the most recent active (scheduled or permission_denied) job for a
+   * task, if any.  Both statuses represent a "pending" reminder intent.
+   */
   findActiveByTaskId(taskId: string): ReminderJob | undefined {
     return Array.from(this.jobs.values()).find(
-      (j) => j.taskId === taskId && j.status === 'scheduled',
+      (j) =>
+        j.taskId === taskId &&
+        (j.status === 'scheduled' || j.status === 'permission_denied'),
     );
   }
 
-  /** Cancels all scheduled jobs for a task. Returns the cancelled jobs. */
+  /** Cancels all scheduled / permission_denied jobs for a task. */
   cancelByTaskId(taskId: string): ReminderJob[] {
     const active = Array.from(this.jobs.values()).filter(
-      (j) => j.taskId === taskId && j.status === 'scheduled',
+      (j) =>
+        j.taskId === taskId &&
+        (j.status === 'scheduled' || j.status === 'permission_denied'),
     );
     for (const job of active) {
       this.updateStatus(job.id, 'cancelled');
