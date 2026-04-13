@@ -1,0 +1,28 @@
+{
+  "name": "personal-todo-app-api-20260413",
+  "version": "1.0.0",
+  "description": "个人待办清单 App 代码仓库，基于模块化 PRD 与架构文档初始化。",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/helloluna1230/personal-todo-app-api-20260413.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/helloluna1230/personal-todo-app-api-20260413/issues"
+  },
+  "homepage": "https://github.com/helloluna1230/personal-todo-app-api-20260413#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0"
+  }
+}
