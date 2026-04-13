@@ -88,7 +88,14 @@ export function computeTimeStatus(task: Task, today: Date): TimeStatus {
 
   const timezone = task.timezone ?? 'UTC';
   const startOfToday = startOfDayInTimezone(today, timezone);
-  const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000 - 1);
+  // Compute start of tomorrow by calling startOfDayInTimezone with a reference
+  // point guaranteed to fall in the next calendar day (startOfToday + 25h covers
+  // even a 25-hour DST "fall back" day).  Then subtract 1ms to get end-of-today.
+  const startOfTomorrow = startOfDayInTimezone(
+    new Date(startOfToday.getTime() + 25 * 60 * 60 * 1000),
+    timezone,
+  );
+  const endOfToday = new Date(startOfTomorrow.getTime() - 1);
 
   if (task.dueAt < startOfToday) {
     return TimeStatus.OVERDUE;

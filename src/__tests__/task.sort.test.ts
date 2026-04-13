@@ -303,6 +303,56 @@ describe('computeTimeStatus', () => {
       });
       expect(computeTimeStatus(task, TODAY)).toBe(TimeStatus.UPCOMING);
     });
+
+    // DST "spring forward" in America/New_York: 2026-03-08
+    // At 02:00 local clocks jump to 03:00 → that day is only 23 hours long
+    //   startOfDay = 2026-03-08T05:00:00Z (UTC-5 → midnight EST before spring)
+    //   endOfDay   = 2026-03-09T03:59:59.999Z (UTC-4 after spring, NOT 04:59:59.999Z)
+    //   A fixed +24h from startOfDay would give 2026-03-09T05:00:00Z - 1ms, which
+    //   is 01:00 EDT next day — an hour too late, mis-classifying early next-day tasks.
+    describe('DST transitions (America/New_York)', () => {
+      // Reference: 2026-03-08T12:00:00Z = 07:00 EST on spring-forward day
+      const SPRING_FORWARD_DAY = new Date('2026-03-08T12:00:00.000Z');
+
+      it('spring forward: returns TODAY when dueAt is at end of 23-hour day (23:59:59.999 EDT = 03:59:59.999Z next UTC day)', () => {
+        // 2026-03-09T03:59:59.999Z = 2026-03-08T23:59:59.999 EDT (after clock jumped)
+        const task = makeTask({
+          dueAt: new Date('2026-03-09T03:59:59.999Z'),
+          timezone: 'America/New_York',
+        });
+        expect(computeTimeStatus(task, SPRING_FORWARD_DAY)).toBe(TimeStatus.TODAY);
+      });
+
+      it('spring forward: returns UPCOMING when dueAt is at start of next day (00:00 EDT = 04:00Z next UTC day)', () => {
+        // 2026-03-09T04:00:00.000Z = 2026-03-09T00:00:00 EDT → tomorrow
+        const task = makeTask({
+          dueAt: new Date('2026-03-09T04:00:00.000Z'),
+          timezone: 'America/New_York',
+        });
+        expect(computeTimeStatus(task, SPRING_FORWARD_DAY)).toBe(TimeStatus.UPCOMING);
+      });
+
+      // Reference: 2026-11-01T12:00:00Z = 08:00 EDT on fall-back day
+      const FALL_BACK_DAY = new Date('2026-11-01T12:00:00.000Z');
+
+      it('fall back: returns TODAY when dueAt is at end of 25-hour day (23:59:59.999 EST = 04:59:59.999Z next UTC day)', () => {
+        // 2026-11-02T04:59:59.999Z = 2026-11-01T23:59:59.999 EST (after clock fell back)
+        const task = makeTask({
+          dueAt: new Date('2026-11-02T04:59:59.999Z'),
+          timezone: 'America/New_York',
+        });
+        expect(computeTimeStatus(task, FALL_BACK_DAY)).toBe(TimeStatus.TODAY);
+      });
+
+      it('fall back: returns UPCOMING when dueAt is at start of next day (00:00 EST = 05:00Z next UTC day)', () => {
+        // 2026-11-02T05:00:00.000Z = 2026-11-02T00:00:00 EST → tomorrow
+        const task = makeTask({
+          dueAt: new Date('2026-11-02T05:00:00.000Z'),
+          timezone: 'America/New_York',
+        });
+        expect(computeTimeStatus(task, FALL_BACK_DAY)).toBe(TimeStatus.UPCOMING);
+      });
+    });
   });
 });
 
