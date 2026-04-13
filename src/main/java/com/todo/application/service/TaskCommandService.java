@@ -49,8 +49,7 @@ public class TaskCommandService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new NoSuchElementException("任务不存在：" + taskId));
 
-        Priority priority = request.getPriority() != null ? request.getPriority() : Priority.MEDIUM;
-        task.setPriority(priority);
+        task.setPriority(request.getPriority());
         task.setUpdatedAt(LocalDateTime.now());
 
         return taskRepository.save(task);

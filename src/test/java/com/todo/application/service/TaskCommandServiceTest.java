@@ -177,13 +177,13 @@ class TaskCommandServiceTest {
     }
 
     @Test
-    void updatePriority_withNullPriority_shouldDefaultToMedium() {
+    void updatePriority_withMediumPriority_shouldUpdatePriority() {
         Task existingTask = Task.builder().title("任务").priority(Priority.HIGH).build();
         when(taskRepository.findById(existingTask.getId())).thenReturn(Optional.of(existingTask));
         stubSave();
 
         UpdatePriorityRequest request = new UpdatePriorityRequest();
-        request.setPriority(null);
+        request.setPriority(Priority.MEDIUM);
 
         Task updated = taskCommandService.updatePriority(existingTask.getId(), request);
 
